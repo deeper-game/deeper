@@ -1,0 +1,21 @@
+[package]
+name = "deeper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { version = "0.9.1", features = ["dynamic"] }
+bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
+bevy_fps_controller = "0.1.4-dev"
+bitvec = "*"
+png = "*"
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3

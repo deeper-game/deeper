@@ -1,0 +1,13 @@
+- Status effects
+  - Increase/decrease health
+  - Increase/decrease max health
+  - Increase/decrease armor
+  - Damage per second
+  - Levitation
+  - Antigravity
+  - Walk on walls
+  - Poison damage (maybe could level up tolerance to this by eating spicy food lol)
+  - Stinging damage (e.g.: bees, maybe this is "pain damage" which can be avoided by levelling up pain tolerance; doesn't affect things if skin hardness is over some threshold)
+- Weapons
+  -
+- Every playthrough, the spells you come up with are saved and in future playthroughs enemies might spawn with them
