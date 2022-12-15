@@ -1,3 +1,4 @@
+pub mod outline;
 //pub mod character;
 pub mod magic;
 pub mod level;
@@ -25,47 +26,72 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use bevy_fps_controller::controller::*;
+use bevy_sprite3d::*;
+use bevy_asset_loader::prelude::*;
 use crate::level::Level;
+use crate::outline::{OutlinePlugin, OutlineMaterial};
 
-pub struct HelloPlugin;
-
-fn main() {
+pub fn main() {
     App::new()
+        .add_loading_state(
+            LoadingState::new(GameState::Loading)
+                .continue_to_state(GameState::Ready)
+                .with_collection::<ImageAssets>())
+        .add_state(GameState::Loading)
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin(RapierDebugRenderPlugin::default())
+        //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
+        .add_plugin(OutlinePlugin)
+        //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
-        .add_startup_system(setup)
         .add_system(manage_cursor)
+        .add_system(item_glow)
+        .add_startup_system(setup)
+        .add_system_set(
+            SystemSet::on_enter(GameState::Ready).with_system(setup_hud))
+        // .add_system_set(
+        //     SystemSet::on_update(GameState::Ready).with_system(hud_follow))
         //.add_system(movement)
         .run();
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum GameState { Loading, Ready }
+
+#[derive(AssetCollection, Resource)]
+pub struct ImageAssets {
+    #[asset(path = "crosshair.png")]
+    crosshair: Handle<Image>,
+}
+
 #[derive(Component)]
-pub struct Player;
+pub struct Item;
+
+#[derive(Component)]
+pub struct HUD;
 
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut outlines: ResMut<Assets<OutlineMaterial>>,
 ) {
-    let level = Level::from_png(&std::fs::File::open("./level.png").unwrap());
+    let level = Level::from_png(&std::fs::File::open("./assets/level.png").unwrap());
 
     for y in 0 .. level.height {
         for x in 0 .. level.width {
             // walls
             if level.has_wall(x, y).unwrap() {
-                commands.spawn_bundle(PbrBundle {
+                commands.spawn(PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
                     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
                     transform: Transform::from_xyz(x as f32, 1.0, y as f32),
                     ..default()
                 })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5))
-                    .insert_bundle(TransformBundle::from(
-                        Transform::from_xyz(x as f32, 1.0, y as f32)));
+                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
             }
             // floors
             if level.has_floor(x, y).unwrap() {
@@ -75,9 +101,7 @@ fn setup(
                     transform: Transform::from_xyz(x as f32, 0.0, y as f32),
                     ..default()
                 })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5))
-                    .insert_bundle(TransformBundle::from(
-                        Transform::from_xyz(x as f32, 0.0, y as f32)));
+                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
             }
         }
     }
@@ -107,6 +131,20 @@ fn setup(
         RenderPlayer(0),
     ));
 
+    commands.spawn_bundle((
+        Item,
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
+            material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
+            transform: Transform::from_xyz(1.5, 0.55, 1.5),
+            ..default()
+        }))
+        .insert(Collider::cuboid(0.025, 0.025, 0.025))
+        .insert(outlines.add(OutlineMaterial {
+            width: 0.,
+            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
+        }));
+
     // light
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
@@ -117,6 +155,30 @@ fn setup(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
+}
+
+pub fn setup_hud(
+    mut commands: Commands,
+    images: Res<ImageAssets>,
+    mut sprite_params: Sprite3dParams
+) {
+    commands.spawn_bundle(ImageBundle {
+        image: images.crosshair.clone()
+        ..default()
+    });
+    // commands.spawn((
+    //     HUD,
+    //     Sprite3d {
+    //         image: images.crosshair.clone(),
+    //         pixels_per_metre: 6400.,
+    //         partial_alpha: false,
+    //         unlit: true,
+    //         //double_sided: false,
+    //         transform: Transform::from_xyz(1.5, 0.75, 1.5),
+    //         // pivot: Some(Vec2::new(0.5, 0.5)),
+    //         ..default()
+    //     }.bundle(&mut sprite_params),
+    // ));
 }
 
 pub fn manage_cursor(
@@ -141,3 +203,41 @@ pub fn manage_cursor(
         }
     }
 }
+
+pub fn item_glow(
+    // mut materials: ResMut<Assets<StandardMaterial>>,
+    mut outlines: ResMut<Assets<OutlineMaterial>>,
+    items: Query<(&GlobalTransform, &Collider, &Handle<OutlineMaterial>), With<Item>>,
+    player: Query<&GlobalTransform, With<RenderPlayer>>,
+) {
+    let camera_transform: &GlobalTransform = player.single();
+    for (item_transform, item_collider, item_outline_material) in items.iter() {
+        let (_, item_rotation, item_translation) =
+            item_transform.to_scale_rotation_translation();
+        let collided = item_collider.cast_ray(
+            item_translation,
+            item_rotation,
+            camera_transform.translation(),
+            camera_transform.forward(),
+            2.0,
+            false,
+        );
+        outlines.get_mut(item_outline_material).unwrap().width =
+            if collided.is_some() { 3.0 } else { 0.0 };
+    }
+}
+
+// pub fn hud_follow(
+//     player: Query<&Transform, With<RenderPlayer>>,
+//     mut hud: Query<&mut Transform, (With<HUD>, Without<RenderPlayer>)>,
+// ) {
+//     let camera_transform: &Transform = player.single();
+//
+//     *hud.single_mut() =
+//         (//GlobalTransform::IDENTITY.mul_transform(
+//             Transform::from_translation(
+//                 camera_transform.translation +
+//                     (0.2 * camera_transform.forward()))
+//                 .looking_at(camera_transform.translation, Vec3::Y)
+//         );
+// }

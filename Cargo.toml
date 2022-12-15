@@ -7,10 +7,14 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.9.1", features = ["dynamic"] }
+bevy_asset_loader = "*"
 bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy_fps_controller = "0.1.4-dev"
+bevy_sprite3d = "*"
 bitvec = "*"
 png = "*"
+wgpu = "*"
+wgpu-types = "*"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
