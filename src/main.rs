@@ -26,7 +26,6 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use bevy_fps_controller::controller::*;
-use bevy_sprite3d::*;
 use bevy_asset_loader::prelude::*;
 use crate::level::Level;
 use crate::outline::{OutlinePlugin, OutlineMaterial};
@@ -71,7 +70,7 @@ pub struct ImageAssets {
 pub struct Item;
 
 #[derive(Component)]
-pub struct HUD;
+pub struct InventoryItem;
 
 fn setup(
     mut commands: Commands,
@@ -160,25 +159,22 @@ fn setup(
 pub fn setup_hud(
     mut commands: Commands,
     images: Res<ImageAssets>,
-    mut sprite_params: Sprite3dParams
 ) {
-    commands.spawn_bundle(ImageBundle {
-        image: images.crosshair.clone()
-        ..default()
-    });
-    // commands.spawn((
-    //     HUD,
-    //     Sprite3d {
-    //         image: images.crosshair.clone(),
-    //         pixels_per_metre: 6400.,
-    //         partial_alpha: false,
-    //         unlit: true,
-    //         //double_sided: false,
-    //         transform: Transform::from_xyz(1.5, 0.75, 1.5),
-    //         // pivot: Some(Vec2::new(0.5, 0.5)),
-    //         ..default()
-    //     }.bundle(&mut sprite_params),
-    // ));
+    commands.spawn(
+        ImageBundle {
+            image: UiImage(images.crosshair.clone()),
+            style: Style {
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    left: Val::Percent(50.0),
+                    bottom: Val::Percent(50.0),
+                    ..default()
+                },
+                size: Size::new(Val::Px(16.0), Val::Px(16.0)),
+                ..default()
+            },
+            ..default()
+        });
 }
 
 pub fn manage_cursor(
@@ -226,18 +222,3 @@ pub fn item_glow(
             if collided.is_some() { 3.0 } else { 0.0 };
     }
 }
-
-// pub fn hud_follow(
-//     player: Query<&Transform, With<RenderPlayer>>,
-//     mut hud: Query<&mut Transform, (With<HUD>, Without<RenderPlayer>)>,
-// ) {
-//     let camera_transform: &Transform = player.single();
-//
-//     *hud.single_mut() =
-//         (//GlobalTransform::IDENTITY.mul_transform(
-//             Transform::from_translation(
-//                 camera_transform.translation +
-//                     (0.2 * camera_transform.forward()))
-//                 .looking_at(camera_transform.translation, Vec3::Y)
-//         );
-// }
