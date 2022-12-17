@@ -41,7 +41,6 @@ pub fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
-        .insert_resource(Inventory::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
@@ -54,6 +53,10 @@ pub fn main() {
         .add_startup_system(setup)
         .add_system_set(
             SystemSet::on_enter(GameState::Ready).with_system(setup_hud))
+        .add_system_set(
+            SystemSet::on_enter(GameState::Ready).with_system(show_inventory))
+        .add_system_set(
+            SystemSet::on_update(GameState::Ready).with_system(update_inventory))
         // .add_system_set(
         //     SystemSet::on_update(GameState::Ready).with_system(hud_follow))
         //.add_system(movement)
@@ -62,17 +65,17 @@ pub fn main() {
 
 type InventoryPosition = (usize, usize);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct InventoryItem {
     item_type: ItemType,
     equipped: bool,
 }
 
-#[derive(Resource)]
+#[derive(Component, Debug)]
 pub struct Inventory {
     width: usize,
     height: usize,
-    map: HashMap<InventoryPosition, InventoryItem>
+    map: HashMap<InventoryPosition, InventoryItem>,
 }
 
 impl Inventory {
@@ -89,10 +92,16 @@ impl Inventory {
             for y in 0 .. self.height {
                 if !self.map.contains_key(&(x, y)) {
                     self.map.insert((x, y), item.clone());
+                    return;
                 }
             }
         }
     }
+}
+
+#[derive(Component)]
+pub struct InventorySlot {
+    position: InventoryPosition,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -100,8 +109,12 @@ pub enum GameState { Loading, Ready }
 
 #[derive(AssetCollection, Resource)]
 pub struct ImageAssets {
+    #[asset(path = "empty.png")]
+    empty: Handle<Image>,
     #[asset(path = "crosshair.png")]
     crosshair: Handle<Image>,
+    #[asset(path = "coin.png")]
+    coin: Handle<Image>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -109,6 +122,16 @@ pub enum ItemType {
     Potion,
     Staff,
     Book,
+}
+
+impl ItemType {
+    pub fn icon(&self, image_assets: &ImageAssets) -> Handle<Image> {
+        match *self {
+            ItemType::Potion => image_assets.coin.clone(),
+            ItemType::Staff => image_assets.coin.clone(),
+            ItemType::Book => image_assets.coin.clone(),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -168,7 +191,8 @@ fn setup(
             yaw: TAU * 5.0 / 8.0,
             ..default()
         },
-        FpsController { ..default() }
+        FpsController { ..default() },
+        Inventory::new(),
     ));
     commands.spawn((
         Camera3dBundle::default(),
@@ -189,7 +213,6 @@ fn setup(
             color: Color::rgba(1.0, 1.0, 1.0, 1.0),
         }));
 
-    // light
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
             intensity: 1500.0,
@@ -205,20 +228,26 @@ pub fn setup_hud(
     mut commands: Commands,
     images: Res<ImageAssets>,
 ) {
-    commands.spawn(
-        ImageBundle {
-            image: UiImage(images.crosshair.clone()),
+    commands
+        .spawn(NodeBundle {
             style: Style {
                 position_type: PositionType::Absolute,
-                position: UiRect {
-                    left: Val::Percent(50.0),
-                    bottom: Val::Percent(50.0),
-                    ..default()
-                },
-                size: Size::new(Val::Px(16.0), Val::Px(16.0)),
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn(ImageBundle {
+                image: UiImage(images.crosshair.clone()),
+                style: Style {
+                    size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                    ..default()
+                },
+                ..default()
+            });
         });
 }
 
@@ -250,8 +279,9 @@ pub fn grab_item(
     mouse: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     items: Query<(Entity, &Item)>,
-    mut inventory: ResMut<Inventory>,
+    mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
 ) {
+    let mut inventory = inventories.single_mut();
     if mouse.just_pressed(MouseButton::Right) {
         for (entity, item) in items.iter() {
             if item.selected {
@@ -263,6 +293,101 @@ pub fn grab_item(
             }
         }
     }
+    println!("DEBUG: {:?}", inventory);
+}
+
+pub fn update_inventory(
+    images: Res<ImageAssets>,
+    mut inventory_slots: Query<(&InventorySlot, &mut UiImage)>,
+    mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
+) {
+    let mut inventory = inventories.single_mut();
+    for (slot, mut image) in inventory_slots.iter_mut() {
+        if inventory.map.contains_key(&slot.position) {
+            *image = UiImage(inventory.map[&slot.position]
+                             .item_type.icon(&images));
+        } else {
+            *image = UiImage(images.empty.clone());
+        }
+    }
+}
+
+pub fn show_inventory(
+    images: Res<ImageAssets>,
+    mut commands: Commands,
+) {
+    commands
+        .spawn(NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                align_items: AlignItems::FlexStart,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn(NodeBundle {
+                style: Style {
+                    size: Size {
+                        width: Val::Px(512.0),
+                        height: Val::Px(128.0),
+                    },
+                    flex_wrap: FlexWrap::Wrap,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgb(0.65, 0.65, 0.65).into(),
+                ..default()
+            }).with_children(|parent| {
+                for i in 0 .. 16 {
+                    for j in 0 .. 4 {
+                        parent.spawn(ImageBundle {
+                            style: Style {
+                                size: Size {
+                                    width: Val::Px(28.0),
+                                    height: Val::Px(28.0),
+                                },
+                                margin: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            image: UiImage(images.empty.clone()),
+                            ..default()
+                        })
+                            .insert(InventorySlot { position: (i, j) });
+                    }
+                }
+            });
+        });
+
+
+    // commands
+    //     .spawn(NodeBundle {
+    //         style: Style {
+    //             position_type: PositionType::Absolute,
+    //             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+    //             align_items: AlignItems::Stretch,
+    //             justify_content: JustifyContent::Center,
+    //             ..default()
+    //         },
+    //         ..default()
+    //     })
+    //     .with_children(|parent| {
+    //         parent.spawn(NodeBundle {
+    //             style: Style {
+    //                 size: Size {
+    //                     width: Val::Percent(70.0),
+    //                     height: Val::Auto,
+    //                 },
+    //                 aspect_ratio: Some(4.0),
+    //                 ..default()
+    //             },
+    //             background_color: Color::rgb(0.65, 0.65, 0.65).into(),
+    //             ..default()
+    //         });
+    //     });
 }
 
 pub fn item_glow(
