@@ -22,6 +22,7 @@ pub mod level;
 
 
 use std::f32::consts::TAU;
+use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
@@ -40,6 +41,7 @@ pub fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
+        .insert_resource(Inventory::new())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
@@ -48,6 +50,7 @@ pub fn main() {
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
         .add_system(item_glow)
+        .add_system(grab_item)
         .add_startup_system(setup)
         .add_system_set(
             SystemSet::on_enter(GameState::Ready).with_system(setup_hud))
@@ -57,7 +60,42 @@ pub fn main() {
         .run();
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+type InventoryPosition = (usize, usize);
+
+#[derive(Clone)]
+pub struct InventoryItem {
+    item_type: ItemType,
+    equipped: bool,
+}
+
+#[derive(Resource)]
+pub struct Inventory {
+    width: usize,
+    height: usize,
+    map: HashMap<InventoryPosition, InventoryItem>
+}
+
+impl Inventory {
+    pub fn new() -> Self {
+        Inventory {
+            width: 16,
+            height: 4,
+            map: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, item: &InventoryItem) {
+        for x in 0 .. self.width {
+            for y in 0 .. self.height {
+                if !self.map.contains_key(&(x, y)) {
+                    self.map.insert((x, y), item.clone());
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum GameState { Loading, Ready }
 
 #[derive(AssetCollection, Resource)]
@@ -66,11 +104,18 @@ pub struct ImageAssets {
     crosshair: Handle<Image>,
 }
 
-#[derive(Component)]
-pub struct Item;
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum ItemType {
+    Potion,
+    Staff,
+    Book,
+}
 
 #[derive(Component)]
-pub struct InventoryItem;
+pub struct Item {
+    selected: bool,
+    item_type: ItemType,
+}
 
 fn setup(
     mut commands: Commands,
@@ -131,7 +176,7 @@ fn setup(
     ));
 
     commands.spawn_bundle((
-        Item,
+        Item { selected: false, item_type: ItemType::Potion },
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
             material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
@@ -200,14 +245,34 @@ pub fn manage_cursor(
     }
 }
 
+pub fn grab_item(
+    mut commands: Commands,
+    mouse: Res<Input<MouseButton>>,
+    keyboard: Res<Input<KeyCode>>,
+    items: Query<(Entity, &Item)>,
+    mut inventory: ResMut<Inventory>,
+) {
+    if mouse.just_pressed(MouseButton::Right) {
+        for (entity, item) in items.iter() {
+            if item.selected {
+                commands.entity(entity).despawn();
+                inventory.insert(&InventoryItem {
+                    item_type: item.item_type.clone(),
+                    equipped: false,
+                });
+            }
+        }
+    }
+}
+
 pub fn item_glow(
     // mut materials: ResMut<Assets<StandardMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
-    items: Query<(&GlobalTransform, &Collider, &Handle<OutlineMaterial>), With<Item>>,
+    mut items: Query<(&mut Item, &GlobalTransform, &Collider, &Handle<OutlineMaterial>)>,
     player: Query<&GlobalTransform, With<RenderPlayer>>,
 ) {
     let camera_transform: &GlobalTransform = player.single();
-    for (item_transform, item_collider, item_outline_material) in items.iter() {
+    for (mut item, item_transform, item_collider, item_outline_material) in items.iter_mut() {
         let (_, item_rotation, item_translation) =
             item_transform.to_scale_rotation_translation();
         let collided = item_collider.cast_ray(
@@ -220,5 +285,6 @@ pub fn item_glow(
         );
         outlines.get_mut(item_outline_material).unwrap().width =
             if collided.is_some() { 3.0 } else { 0.0 };
+        (*item).selected = collided.is_some();
     }
 }
