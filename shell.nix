@@ -1,5 +1,5 @@
 
-let 
+let
   nixpkgs = import (import nix/nixpkgs.nix) { };
 in nixpkgs.callPackage (
   { stdenv, pkgs, lib }:
@@ -15,35 +15,40 @@ in nixpkgs.callPackage (
 
     nativeBuildInputs = [
       pkgs.pkgconfig
-      # pkgs.valgrind
-      # pkgs.renderdoc
       pkgs.gdb
+    ] ++ lib.optionals stdenv.isLinux [
+      pkgs.valgrind
+      pkgs.renderdoc
     ];
 
     buildInputs = [
-      # pkgs.alsaLib
       pkgs.libclang.lib
       pkgs.libiconv
-      # pkgs.libxkbcommon
-      pkgs.mesa
       pkgs.shaderc
       pkgs.shaderc.lib
-      # pkgs.xorg.libX11
-      # pkgs.xorg.libXcursor
-      # pkgs.xorg.libXrandr
-      # pkgs.xorg.libXi
       pkgs.SDL2
-      # pkgs.udev
       pkgs.vulkan-loader
-      # pkgs.vulkan-validation-layers
+    ] ++ lib.optionals stdenv.isLinux [
+      pkgs.alsaLib
+      pkgs.xorg.libX11
+      pkgs.xorg.libXcursor
+      pkgs.xorg.libXrandr
+      pkgs.xorg.libXi
+      pkgs.libxkbcommon
+      pkgs.mesa
+      pkgs.udev
+      pkgs.vulkan-validation-layers
+    ] ++ lib.optionals stdenv.isDarwin [
       pkgs.darwin.apple_sdk.frameworks.AppKit
     ];
 
-    # VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d:${pkgs.vulkan-tools-lunarg}/etc/vulkan/explicit_layer.d";
-
     SHADERC_LIB_DIR = "${pkgs.shaderc.lib}/lib";
 
-    # LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+    VK_LAYER_PATH = if stdenv.isLinux
+      then "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d:${pkgs.vulkan-tools-lunarg}/etc/vulkan/explicit_layer.d"
+      else "";
+
+    LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
 
     # The coreaudio-sys crate is configured to look for things in whatever the
     # output of `xcrun --sdk macosx --show-sdk-path` is. However, this does not
@@ -55,8 +60,8 @@ in nixpkgs.callPackage (
     # TODO: I'm not 100% confident that this being blank won't cause issues for
     # Nix-on-Linux development. It may be sufficient to use the pkgs.symlinkJoin
     # above regardless of system! That'd set us up for cross-compilation as well.
-    COREAUDIO_SDK_PATH = 
-      if pkgs.stdenv.isDarwin 
+    COREAUDIO_SDK_PATH =
+      if pkgs.stdenv.isDarwin
         then pkgs.symlinkJoin {
           name = "sdk";
           paths = with pkgs.darwin.apple_sdk.frameworks; [
@@ -75,5 +80,4 @@ in nixpkgs.callPackage (
         }
     else "";
   }
-
 ) {}
