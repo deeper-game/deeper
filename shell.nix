@@ -44,9 +44,9 @@ in nixpkgs.callPackage (
 
     SHADERC_LIB_DIR = "${pkgs.shaderc.lib}/lib";
 
-    VK_LAYER_PATH = if stdenv.isLinux
-      then "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d:${pkgs.vulkan-tools-lunarg}/etc/vulkan/explicit_layer.d"
-      else "$VK_LAYER_PATH";
+    # VK_LAYER_PATH = if stdenv.isLinux
+    #   then "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d:${pkgs.vulkan-tools-lunarg}/etc/vulkan/explicit_layer.d"
+    #   else "$VK_LAYER_PATH";
 
     LD_LIBRARY_PATH =
       if stdenv.isLinux
