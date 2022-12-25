@@ -326,19 +326,27 @@ pub fn show_inventory(
             }).with_children(|parent| {
                 for i in 0 .. 16 {
                     for j in 0 .. 4 {
-                        parent.spawn(ImageBundle {
+                        parent.spawn(NodeBundle {
                             style: Style {
-                                size: Size {
-                                    width: Val::Px(28.0),
-                                    height: Val::Px(28.0),
-                                },
                                 margin: UiRect::all(Val::Px(2.0)),
                                 ..default()
                             },
-                            image: UiImage(images.empty.clone()),
+                            background_color: Color::rgb(0.4, 0.4, 0.4).into(),
                             ..default()
-                        })
-                            .insert(InventorySlot { position: (i, j) });
+                        }).with_children(|parent| {
+                            parent.spawn(ImageBundle {
+                                style: Style {
+                                    size: Size {
+                                        width: Val::Px(28.0),
+                                        height: Val::Px(28.0),
+                                    },
+                                    ..default()
+                                },
+                                image: UiImage(images.empty.clone()),
+                                ..default()
+                            })
+                                .insert(InventorySlot { position: (i, j) });
+                        });
                     }
                 }
             });
