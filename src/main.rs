@@ -28,6 +28,7 @@ use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use bevy_fps_controller::controller::*;
 use bevy_asset_loader::prelude::*;
+use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
 use crate::level::Level;
 use crate::outline::{OutlinePlugin, OutlineMaterial};
 
@@ -45,6 +46,7 @@ pub fn main() {
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
         .add_plugin(OutlinePlugin)
+        .add_plugin(InspectorPlugin::<InspectorQuery<Entity, (With<Style>, Without<Parent>)>>::new())
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
