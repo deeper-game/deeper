@@ -1,27 +1,4 @@
-pub mod outline;
-//pub mod character;
-pub mod magic;
-pub mod level;
-//pub mod camera;
-
-// pub fn main() {
-//     println!("Hello, World!");
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
@@ -31,6 +8,10 @@ use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
 use crate::level::Level;
 use crate::outline::{OutlinePlugin, OutlineMaterial};
+
+pub mod outline;
+pub mod magic;
+pub mod level;
 
 pub fn main() {
     App::new()
@@ -295,7 +276,6 @@ pub fn grab_item(
             }
         }
     }
-    println!("DEBUG: {:?}", inventory);
 }
 
 pub fn update_inventory(
