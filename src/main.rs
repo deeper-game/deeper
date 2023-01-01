@@ -134,11 +134,11 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
 ) {
-    let level = Level::from_png(&std::fs::File::open("./assets/level.png").unwrap());
+    let level = Level::from_png(
+        &std::fs::File::open("./assets/level.png").unwrap());
 
     for y in 0 .. level.height {
         for x in 0 .. level.width {
-            // walls
             if level.has_wall(x, y).unwrap() {
                 commands.spawn(PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
@@ -148,7 +148,6 @@ fn setup(
                 })
                     .insert(Collider::cuboid(0.5, 0.5, 0.5));
             }
-            // floors
             if level.has_floor(x, y).unwrap() {
                 commands.spawn_bundle(PbrBundle {
                     mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
@@ -162,7 +161,6 @@ fn setup(
     }
 
     commands.spawn((
-        // Collider::cuboid(1.2, 1.2, 1.2),
         Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
         ActiveEvents::COLLISION_EVENTS,
         Velocity::zero(),
@@ -171,7 +169,7 @@ fn setup(
         LockedAxes::ROTATION_LOCKED,
         AdditionalMassProperties::Mass(1.0),
         GravityScale(0.0),
-        Ccd { enabled: true }, // Prevent clipping when going fast
+        Ccd { enabled: true },
         Transform::from_xyz(10.0, 10.0, 10.0),
         LogicalPlayer(0),
         FpsControllerInput {
@@ -353,33 +351,6 @@ pub fn show_inventory(
                 }
             });
         });
-
-
-    // commands
-    //     .spawn(NodeBundle {
-    //         style: Style {
-    //             position_type: PositionType::Absolute,
-    //             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-    //             align_items: AlignItems::Stretch,
-    //             justify_content: JustifyContent::Center,
-    //             ..default()
-    //         },
-    //         ..default()
-    //     })
-    //     .with_children(|parent| {
-    //         parent.spawn(NodeBundle {
-    //             style: Style {
-    //                 size: Size {
-    //                     width: Val::Percent(70.0),
-    //                     height: Val::Auto,
-    //                 },
-    //                 aspect_ratio: Some(4.0),
-    //                 ..default()
-    //             },
-    //             background_color: Color::rgb(0.65, 0.65, 0.65).into(),
-    //             ..default()
-    //         });
-    //     });
 }
 
 pub fn item_glow(
