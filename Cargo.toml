@@ -16,6 +16,8 @@ bitvec = "*"
 png = "*"
 wgpu = "*"
 wgpu-types = "*"
+termion = "*" # temporary until editor code is cleaned up
+unicode-segmentation = "*"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
