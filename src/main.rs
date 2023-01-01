@@ -23,6 +23,7 @@ pub fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
+        .insert_resource(ItemSelected { entity: None })
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
@@ -119,8 +120,12 @@ impl ItemType {
 
 #[derive(Component)]
 pub struct Item {
-    selected: bool,
     item_type: ItemType,
+}
+
+#[derive(Resource)]
+pub struct ItemSelected {
+    entity: Option<Entity>,
 }
 
 fn setup(
@@ -183,7 +188,7 @@ fn setup(
     ));
 
     commands.spawn_bundle((
-        Item { selected: false, item_type: ItemType::Potion },
+        Item { item_type: ItemType::Potion },
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
             material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
@@ -261,19 +266,16 @@ pub fn grab_item(
     mut commands: Commands,
     mouse: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
-    items: Query<(Entity, &Item)>,
+    item_selected: Res<ItemSelected>,
+    items: Query<&Item>,
     mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
 ) {
     let mut inventory = inventories.single_mut();
     if mouse.just_pressed(MouseButton::Right) {
-        for (entity, item) in items.iter() {
-            if item.selected {
-                commands.entity(entity).despawn();
-                inventory.insert(&InventoryItem {
-                    item_type: item.item_type.clone(),
-                    equipped: false,
-                });
-            }
+        if let Some(entity) = item_selected.entity {
+            let item_type = items.get(entity).unwrap().item_type.clone();
+            commands.entity(entity).despawn();
+            inventory.insert(&InventoryItem { item_type, equipped: false });
         }
     }
 }
@@ -381,25 +383,37 @@ pub fn show_inventory(
 }
 
 pub fn item_glow(
-    // mut materials: ResMut<Assets<StandardMaterial>>,
+    rapier_context: Res<RapierContext>,
+    mut item_selected: ResMut<ItemSelected>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
-    mut items: Query<(&mut Item, &GlobalTransform, &Collider, &Handle<OutlineMaterial>)>,
+    mut items: Query<(&mut Item, &Handle<OutlineMaterial>),
+                     (With<GlobalTransform>, With<Collider>)>,
     player: Query<&GlobalTransform, With<RenderPlayer>>,
 ) {
-    let camera_transform: &GlobalTransform = player.single();
-    for (mut item, item_transform, item_collider, item_outline_material) in items.iter_mut() {
-        let (_, item_rotation, item_translation) =
-            item_transform.to_scale_rotation_translation();
-        let collided = item_collider.cast_ray(
-            item_translation,
-            item_rotation,
-            camera_transform.translation(),
-            camera_transform.forward(),
-            2.0,
-            false,
-        );
-        outlines.get_mut(item_outline_material).unwrap().width =
-            if collided.is_some() { 3.0 } else { 0.0 };
-        (*item).selected = collided.is_some();
+    let camera: &GlobalTransform = player.single();
+    if let Some((entity, toi)) = rapier_context.cast_ray(
+        camera.translation(), camera.forward(), 2.0, false,
+        QueryFilter::exclude_dynamic(),
+    ) {
+        if item_selected.entity != Some(entity) {
+            if let Some(e) = item_selected.entity {
+                if let Ok((_, old_material)) = items.get_mut(e) {
+                    outlines.get_mut(old_material).unwrap().width = 0.0;
+                }
+            }
+            item_selected.entity = None;
+
+            if let Ok((_, new_material)) = items.get(entity) {
+                outlines.get_mut(new_material).unwrap().width = 3.0;
+                item_selected.entity = Some(entity);
+            }
+        }
+    } else {
+        if let Some(e) = item_selected.entity {
+            if let Ok((_, old_material)) = items.get(e) {
+                outlines.get_mut(old_material).unwrap().width = 0.0;
+            }
+        }
+        item_selected.entity = None;
     }
 }
