@@ -12,6 +12,7 @@ use crate::outline::{OutlinePlugin, OutlineMaterial};
 pub mod outline;
 pub mod magic;
 pub mod level;
+pub mod editor;
 
 pub fn main() {
     App::new()
