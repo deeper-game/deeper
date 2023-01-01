@@ -8,19 +8,18 @@ use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
 use crate::level::Level;
 use crate::outline::{OutlinePlugin, OutlineMaterial};
+use crate::inventory::{Inventory, InventoryItem, ItemType};
 
 pub mod outline;
 pub mod magic;
 pub mod level;
+pub mod ui;
+pub mod assets;
+pub mod inventory;
 pub mod editor;
 
 pub fn main() {
     App::new()
-        .add_loading_state(
-            LoadingState::new(GameState::Loading)
-                .continue_to_state(GameState::Ready)
-                .with_collection::<ImageAssets>())
-        .add_state(GameState::Loading)
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
@@ -29,94 +28,17 @@ pub fn main() {
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
         .add_plugin(OutlinePlugin)
-        .add_plugin(InspectorPlugin::<InspectorQuery<Entity, (With<Style>, Without<Parent>)>>::new())
+        .add_plugin(crate::assets::AssetsPlugin)
+        .add_plugin(crate::ui::UiPlugin)
+        .add_plugin(crate::inventory::InventoryPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
         .add_system(item_glow)
         .add_system(grab_item)
         .add_startup_system(setup)
-        .add_system_set(
-            SystemSet::on_enter(GameState::Ready).with_system(setup_hud))
-        .add_system_set(
-            SystemSet::on_enter(GameState::Ready).with_system(show_inventory))
-        .add_system_set(
-            SystemSet::on_update(GameState::Ready).with_system(update_inventory))
-        // .add_system_set(
-        //     SystemSet::on_update(GameState::Ready).with_system(hud_follow))
         //.add_system(movement)
         .run();
-}
-
-type InventoryPosition = (usize, usize);
-
-#[derive(Clone, Debug)]
-pub struct InventoryItem {
-    item_type: ItemType,
-    equipped: bool,
-}
-
-#[derive(Component, Debug)]
-pub struct Inventory {
-    width: usize,
-    height: usize,
-    map: HashMap<InventoryPosition, InventoryItem>,
-}
-
-impl Inventory {
-    pub fn new() -> Self {
-        Inventory {
-            width: 16,
-            height: 4,
-            map: HashMap::new(),
-        }
-    }
-
-    pub fn insert(&mut self, item: &InventoryItem) {
-        for x in 0 .. self.width {
-            for y in 0 .. self.height {
-                if !self.map.contains_key(&(x, y)) {
-                    self.map.insert((x, y), item.clone());
-                    return;
-                }
-            }
-        }
-    }
-}
-
-#[derive(Component)]
-pub struct InventorySlot {
-    position: InventoryPosition,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum GameState { Loading, Ready }
-
-#[derive(AssetCollection, Resource)]
-pub struct ImageAssets {
-    #[asset(path = "empty.png")]
-    empty: Handle<Image>,
-    #[asset(path = "crosshair.png")]
-    crosshair: Handle<Image>,
-    #[asset(path = "coin.png")]
-    coin: Handle<Image>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum ItemType {
-    Potion,
-    Staff,
-    Book,
-}
-
-impl ItemType {
-    pub fn icon(&self, image_assets: &ImageAssets) -> Handle<Image> {
-        match *self {
-            ItemType::Potion => image_assets.coin.clone(),
-            ItemType::Staff => image_assets.coin.clone(),
-            ItemType::Book => image_assets.coin.clone(),
-        }
-    }
 }
 
 #[derive(Component)]
@@ -211,33 +133,6 @@ fn setup(
     });
 }
 
-pub fn setup_hud(
-    mut commands: Commands,
-    images: Res<ImageAssets>,
-) {
-    commands
-        .spawn(NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn(ImageBundle {
-                image: UiImage(images.crosshair.clone()),
-                style: Style {
-                    size: Size::new(Val::Px(32.0), Val::Px(32.0)),
-                    ..default()
-                },
-                ..default()
-            });
-        });
-}
-
 pub fn manage_cursor(
     mut windows: ResMut<Windows>,
     btn: Res<Input<MouseButton>>,
@@ -277,81 +172,6 @@ pub fn grab_item(
             inventory.insert(&InventoryItem { item_type, equipped: false });
         }
     }
-}
-
-pub fn update_inventory(
-    images: Res<ImageAssets>,
-    mut inventory_slots: Query<(&InventorySlot, &mut UiImage)>,
-    mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
-) {
-    let mut inventory = inventories.single_mut();
-    for (slot, mut image) in inventory_slots.iter_mut() {
-        if inventory.map.contains_key(&slot.position) {
-            *image = UiImage(inventory.map[&slot.position]
-                             .item_type.icon(&images));
-        } else {
-            *image = UiImage(images.empty.clone());
-        }
-    }
-}
-
-pub fn show_inventory(
-    images: Res<ImageAssets>,
-    mut commands: Commands,
-) {
-    commands
-        .spawn(NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                align_items: AlignItems::FlexStart,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn(NodeBundle {
-                style: Style {
-                    size: Size {
-                        width: Val::Px(512.0),
-                        height: Val::Px(128.0),
-                    },
-                    flex_wrap: FlexWrap::Wrap,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                background_color: Color::rgb(0.65, 0.65, 0.65).into(),
-                ..default()
-            }).with_children(|parent| {
-                for i in 0 .. 16 {
-                    for j in 0 .. 4 {
-                        parent.spawn(NodeBundle {
-                            style: Style {
-                                margin: UiRect::all(Val::Px(2.0)),
-                                ..default()
-                            },
-                            background_color: Color::rgb(0.4, 0.4, 0.4).into(),
-                            ..default()
-                        }).with_children(|parent| {
-                            parent.spawn(ImageBundle {
-                                style: Style {
-                                    size: Size {
-                                        width: Val::Px(28.0),
-                                        height: Val::Px(28.0),
-                                    },
-                                    ..default()
-                                },
-                                image: UiImage(images.empty.clone()),
-                                ..default()
-                            })
-                                .insert(InventorySlot { position: (i, j) });
-                        });
-                    }
-                }
-            });
-        });
 }
 
 pub fn item_glow(
