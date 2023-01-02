@@ -30,12 +30,14 @@
     clippy::wildcard_enum_match_arm,
     clippy::else_if_without_else
 )]
+
 mod document;
 mod editor;
 mod filetype;
 mod highlighting;
 mod row;
 mod terminal;
+
 pub use document::Document;
 use editor::Editor;
 pub use editor::Position;
