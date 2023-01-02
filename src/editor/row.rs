@@ -82,12 +82,15 @@ impl Row {
         result.push_str(&end_highlight[..]);
         result
     }
+
     pub fn len(&self) -> usize {
         self.len
     }
+
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+
     pub fn insert(&mut self, at: usize, c: char) {
         if at >= self.len() {
             self.string.push(c);
@@ -107,6 +110,7 @@ impl Row {
         self.len = length;
         self.string = result;
     }
+
     pub fn delete(&mut self, at: usize) {
         if at >= self.len() {
             return;
@@ -122,10 +126,12 @@ impl Row {
         self.len = length;
         self.string = result;
     }
+
     pub fn append(&mut self, new: &Self) {
         self.string = format!("{}{}", self.string, new.string);
         self.len += new.len;
     }
+
     pub fn split(&mut self, at: usize) -> Self {
         let mut row: String = String::new();
         let mut length = 0;
@@ -151,9 +157,11 @@ impl Row {
             highlighting: Vec::new(),
         }
     }
+
     pub fn as_bytes(&self) -> &[u8] {
         self.string.as_bytes()
     }
+
     pub fn find(&self, query: &str, at: usize, direction: SearchDirection) -> Option<usize> {
         if at > self.len || query.is_empty() {
             return None;
@@ -238,6 +246,7 @@ impl Row {
         }
         true
     }
+
     fn highlight_keywords(
         &mut self,
         index: &mut usize,
@@ -281,6 +290,7 @@ impl Row {
             highlighting::Type::PrimaryKeywords,
         )
     }
+
     fn highlight_secondary_keywords(
         &mut self,
         index: &mut usize,
@@ -343,6 +353,7 @@ impl Row {
         }
         false
     }
+
     #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
     fn highlight_multiline_comment(
         &mut self,
@@ -396,6 +407,7 @@ impl Row {
         }
         false
     }
+
     fn highlight_number(
         &mut self,
         index: &mut usize,
@@ -426,6 +438,7 @@ impl Row {
         }
         false
     }
+
     #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
     pub fn highlight(
         &mut self,
