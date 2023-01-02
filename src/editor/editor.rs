@@ -97,7 +97,8 @@ impl Editor {
             if let Ok(doc) = doc {
                 doc
             } else {
-                initial_status = format!("ERR: Could not open file: {}", file_name);
+                initial_status =
+                    format!("ERROR: Could not open file: {}", file_name);
                 Document::default()
             }
         } else {
@@ -117,11 +118,13 @@ impl Editor {
     }
 
     fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
-        Terminal::cursor_hide();
-        Terminal::cursor_position(&Position::default());
+        self.terminal.cursor_hide();
+        self.terminal.cursor_position(&Position::default());
         if self.should_quit {
-            Terminal::clear_screen();
-            println!("Goodbye.\r");
+            self.terminal.clear_screen();
+            self.terminal.write("Goodbye.");
+            self.terminal.carriage_return();
+            self.terminal.newline();
         } else {
             self.document.highlight(
                 &self.highlighted_word,
@@ -134,13 +137,13 @@ impl Editor {
             self.draw_rows();
             self.draw_status_bar();
             self.draw_message_bar();
-            Terminal::cursor_position(&Position {
+            self.terminal.cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
                 y: self.cursor_position.y.saturating_sub(self.offset.y),
             });
         }
-        Terminal::cursor_show();
-        Terminal::flush()
+        self.terminal.cursor_show();
+        self.terminal.flush()
     }
 
     fn save(&mut self) {
@@ -165,7 +168,7 @@ impl Editor {
         let mut direction = SearchDirection::Forward;
         let query = self
             .prompt(
-                "Search (ESC to cancel, Arrows to navigate): ",
+                "Search (ESC to cancel, arrows to navigate): ",
                 |editor, key, query| {
                     let mut moved = false;
                     match key {
@@ -174,7 +177,8 @@ impl Editor {
                             editor.move_cursor(Key::Right);
                             moved = true;
                         }
-                        Key::Left | Key::Up => direction = SearchDirection::Backward,
+                        Key::Left | Key::Up =>
+                            direction = SearchDirection::Backward,
                         _ => direction = SearchDirection::Forward,
                     }
                     if let Some(position) =
@@ -200,7 +204,7 @@ impl Editor {
     }
 
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
-        let pressed_key = Terminal::read_key()?;
+        let pressed_key = self.terminal.read_key()?;
         match pressed_key {
             Key::Ctrl('q') => {
                 if self.quit_times > 0 && self.document.is_dirty() {
@@ -263,7 +267,7 @@ impl Editor {
 
     fn move_cursor(&mut self, key: Key) {
         let terminal_height = self.terminal.size().height as usize;
-        let Position { mut y, mut x } = self.cursor_position;
+        let Position { mut x, mut y } = self.cursor_position;
         let height = self.document.len();
         let mut width = if let Some(row) = self.document.row(y) {
             row.len()
@@ -328,7 +332,7 @@ impl Editor {
     }
 
     fn draw_welcome_message(&self) {
-        let mut welcome_message = format!("Hecto editor -- version {}", VERSION);
+        let mut welcome_message = format!("Micro editor version 4.33");
         let width = self.terminal.size().width as usize;
         let len = welcome_message.len();
         #[allow(clippy::integer_arithmetic, clippy::integer_division)]
@@ -336,7 +340,9 @@ impl Editor {
         let spaces = " ".repeat(padding.saturating_sub(1));
         welcome_message = format!("~{}{}", spaces, welcome_message);
         welcome_message.truncate(width);
-        println!("{}\r", welcome_message);
+        self.terminal.write(&welcome_message);
+        self.terminal.carriage_return();
+        self.terminal.newline();
     }
 
     pub fn draw_row(&self, row: &Row) {
@@ -344,14 +350,16 @@ impl Editor {
         let start = self.offset.x;
         let end = self.offset.x.saturating_add(width);
         let row = row.render(start, end);
-        println!("{}\r", row)
+        self.terminal.write(&row);
+        self.terminal.carriage_return();
+        self.terminal.newline();
     }
 
     #[allow(clippy::integer_division, clippy::integer_arithmetic)]
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height {
-            Terminal::clear_current_line();
+            self.terminal.clear_current_line();
             if let Some(row) = self
                 .document
                 .row(self.offset.y.saturating_add(terminal_row as usize))
@@ -360,7 +368,9 @@ impl Editor {
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
-                println!("~\r");
+                self.terminal.write("~");
+                self.terminal.carriage_return();
+                self.terminal.newline();
             }
         }
     }
@@ -397,20 +407,22 @@ impl Editor {
         status.push_str(&" ".repeat(width.saturating_sub(len)));
         status = format!("{}{}", status, line_indicator);
         status.truncate(width);
-        Terminal::set_bg_color(STATUS_BG_COLOR);
-        Terminal::set_fg_color(STATUS_FG_COLOR);
-        println!("{}\r", status);
-        Terminal::reset_fg_color();
-        Terminal::reset_bg_color();
+        self.terminal.set_bg_color(STATUS_BG_COLOR);
+        self.terminal.set_fg_color(STATUS_FG_COLOR);
+        self.terminal.write(&status);
+        self.terminal.carriage_return();
+        self.terminal.newline();
+        self.terminal.reset_fg_color();
+        self.terminal.reset_bg_color();
     }
 
     fn draw_message_bar(&self) {
-        Terminal::clear_current_line();
+        self.terminal.clear_current_line();
         let message = &self.status_message;
         if Instant::now() - message.time < Duration::new(5, 0) {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().width as usize);
-            print!("{}", text);
+            self.terminal.write(&text);
         }
     }
 
@@ -422,7 +434,7 @@ impl Editor {
         loop {
             self.status_message = StatusMessage::from(format!("{}{}", prompt, result));
             self.refresh_screen()?;
-            let key = Terminal::read_key()?;
+            let key = self.terminal.read_key()?;
             match key {
                 Key::Backspace => result.truncate(result.len().saturating_sub(1)),
                 Key::Char('\n') => break,
