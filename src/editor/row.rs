@@ -53,7 +53,6 @@ impl Row {
         let start = cmp::min(start, end);
         let mut result = String::new();
         let mut current_highlighting = &highlighting::Type::None;
-        #[allow(clippy::integer_arithmetic)]
         for (index, grapheme) in self.string[..]
             .graphemes(true)
             .enumerate()
@@ -176,7 +175,6 @@ impl Row {
         } else {
             at
         };
-        #[allow(clippy::integer_arithmetic)]
         let substring: String = self.string[..]
             .graphemes(true)
             .skip(start)
@@ -192,7 +190,6 @@ impl Row {
                 substring[..].grapheme_indices(true).enumerate()
             {
                 if matching_byte_index == byte_index {
-                    #[allow(clippy::integer_arithmetic)]
                     return Some(start + grapheme_index);
                 }
             }
@@ -209,7 +206,6 @@ impl Row {
             while let Some(search_match) = self.find(word, index, SearchDirection::Forward) {
                 if let Some(next_index) = search_match.checked_add(word[..].graphemes(true).count())
                 {
-                    #[allow(clippy::indexing_slicing)]
                     for i in index.saturating_add(search_match)..next_index {
                         self.highlighting[i] = highlighting::Type::Match;
                     }
@@ -255,7 +251,6 @@ impl Row {
         hl_type: highlighting::Type,
     ) -> bool {
         if *index > 0 {
-            #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
             let prev_char = chars[*index - 1];
             if !is_separator(prev_char) {
                 return false;
@@ -263,7 +258,6 @@ impl Row {
         }
         for word in keywords {
             if *index < chars.len().saturating_sub(word.len()) {
-                #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
                 let next_char = chars[*index + word.len()];
                 if !is_separator(next_char) {
                     continue;
@@ -354,7 +348,6 @@ impl Row {
         false
     }
 
-    #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
     fn highlight_multiline_comment(
         &mut self,
         index: &mut usize,
@@ -417,7 +410,6 @@ impl Row {
     ) -> bool {
         if opts.numbers() && c.is_ascii_digit() {
             if *index > 0 {
-                #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
                 let prev_char = chars[*index - 1];
                 if !is_separator(prev_char) {
                     return false;
@@ -439,7 +431,6 @@ impl Row {
         false
     }
 
-    #[allow(clippy::indexing_slicing, clippy::integer_arithmetic)]
     pub fn highlight(
         &mut self,
         opts: &HighlightingOptions,
