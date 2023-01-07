@@ -23,7 +23,7 @@ pub fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
-        .insert_resource(ItemSelected { entity: None })
+        .insert_resource(Selected { entity: None })
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
@@ -34,12 +34,15 @@ pub fn main() {
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
-        .add_system(item_glow)
-        .add_system(grab_item)
+        .add_system(interaction_glow)
+        .add_system(interact)
         .add_startup_system(setup)
         //.add_system(movement)
         .run();
 }
+
+#[derive(Component)]
+pub struct Interactable;
 
 #[derive(Component)]
 pub struct Item {
@@ -47,7 +50,7 @@ pub struct Item {
 }
 
 #[derive(Resource)]
-pub struct ItemSelected {
+pub struct Selected {
     entity: Option<Entity>,
 }
 
@@ -109,6 +112,7 @@ fn setup(
     ));
 
     commands.spawn_bundle((
+        Interactable,
         Item { item_type: ItemType::Potion },
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
@@ -156,17 +160,17 @@ pub fn manage_cursor(
     }
 }
 
-pub fn grab_item(
+pub fn interact(
     mut commands: Commands,
     mouse: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
-    item_selected: Res<ItemSelected>,
+    selected: Res<Selected>,
     items: Query<&Item>,
     mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
 ) {
     let mut inventory = inventories.single_mut();
     if mouse.just_pressed(MouseButton::Right) {
-        if let Some(entity) = item_selected.entity {
+        if let Some(entity) = selected.entity {
             let item_type = items.get(entity).unwrap().item_type.clone();
             commands.entity(entity).despawn();
             inventory.insert(&InventoryItem { item_type, equipped: false });
@@ -174,12 +178,12 @@ pub fn grab_item(
     }
 }
 
-pub fn item_glow(
+pub fn interaction_glow(
     rapier_context: Res<RapierContext>,
-    mut item_selected: ResMut<ItemSelected>,
+    mut selected: ResMut<Selected>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
-    mut items: Query<(&mut Item, &Handle<OutlineMaterial>),
-                     (With<GlobalTransform>, With<Collider>)>,
+    mut interactables: Query<&Handle<OutlineMaterial>,
+                             (With<GlobalTransform>, With<Collider>, With<Interactable>)>,
     player: Query<&GlobalTransform, With<RenderPlayer>>,
 ) {
     let camera: &GlobalTransform = player.single();
@@ -187,25 +191,25 @@ pub fn item_glow(
         camera.translation(), camera.forward(), 2.0, false,
         QueryFilter::exclude_dynamic(),
     ) {
-        if item_selected.entity != Some(entity) {
-            if let Some(e) = item_selected.entity {
-                if let Ok((_, old_material)) = items.get_mut(e) {
+        if selected.entity != Some(entity) {
+            if let Some(e) = selected.entity {
+                if let Ok(old_material) = interactables.get_mut(e) {
                     outlines.get_mut(old_material).unwrap().width = 0.0;
                 }
             }
-            item_selected.entity = None;
+            selected.entity = None;
 
-            if let Ok((_, new_material)) = items.get(entity) {
+            if let Ok(new_material) = interactables.get(entity) {
                 outlines.get_mut(new_material).unwrap().width = 3.0;
-                item_selected.entity = Some(entity);
+                selected.entity = Some(entity);
             }
         }
     } else {
-        if let Some(e) = item_selected.entity {
-            if let Ok((_, old_material)) = items.get(e) {
+        if let Some(e) = selected.entity {
+            if let Ok(old_material) = interactables.get(e) {
                 outlines.get_mut(old_material).unwrap().width = 0.0;
             }
         }
-        item_selected.entity = None;
+        selected.entity = None;
     }
 }
