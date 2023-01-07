@@ -29,14 +29,28 @@ mod row;
 mod terminal;
 
 pub use document::Document;
-use editor::Editor;
+pub use editor::Editor;
 pub use editor::Position;
 pub use editor::SearchDirection;
 pub use filetype::FileType;
 pub use filetype::HighlightingOptions;
 pub use row::Row;
 pub use terminal::Terminal;
+pub use terminal::Rasterized;
 
-fn main() {
-    Editor::default().run();
+use bevy::prelude::*;
+
+#[derive(Component)]
+pub struct Screen {
+    pub editor: Editor,
 }
+
+impl Screen {
+    pub fn new(editor: Editor) -> Self {
+        Self { editor }
+    }
+}
+
+// pub fn main() {
+//     Editor::default().run();
+// }

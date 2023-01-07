@@ -25,10 +25,9 @@ use crate::editor::highlighting;
 use crate::editor::HighlightingOptions;
 use crate::editor::SearchDirection;
 use std::cmp;
-use termion::color;
 use unicode_segmentation::UnicodeSegmentation;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Row {
     string: String,
     highlighting: Vec<highlighting::Type>,
@@ -66,9 +65,9 @@ impl Row {
                     .unwrap_or(&highlighting::Type::None);
                 if highlighting_type != current_highlighting {
                     current_highlighting = highlighting_type;
-                    let start_highlight =
-                        format!("{}", termion::color::Fg(highlighting_type.to_color()));
-                    result.push_str(&start_highlight[..]);
+                    // let start_highlight =
+                    //     format!("{}", termion::color::Fg(highlighting_type.to_color()));
+                    // result.push_str(&start_highlight[..]);
                 }
                 if c == '\t' {
                     result.push_str("  ");
@@ -77,8 +76,8 @@ impl Row {
                 }
             }
         }
-        let end_highlight = format!("{}", termion::color::Fg(color::Reset));
-        result.push_str(&end_highlight[..]);
+        // let end_highlight = format!("{}", termion::color::Fg(color::Reset));
+        // result.push_str(&end_highlight[..]);
         result
     }
 
