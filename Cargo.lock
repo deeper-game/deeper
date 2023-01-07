@@ -1453,6 +1453,7 @@ dependencies = [
  "bevy_rapier3d",
  "bevy_sprite3d",
  "bitvec",
+ "noto-sans-mono-bitmap",
  "png 0.17.7",
  "termion",
  "unicode-segmentation",
@@ -2562,6 +2563,12 @@ dependencies = [
  "walkdir",
  "winapi",
 ]
+
+[[package]]
+name = "noto-sans-mono-bitmap"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a27daf9557165efe1d09b52f97393bf6283cadb0a76fbe64a1061e15553a994a"
 
 [[package]]
 name = "nu-ansi-term"
