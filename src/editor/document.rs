@@ -25,37 +25,14 @@ use crate::editor::FileType;
 use crate::editor::Position;
 use crate::editor::Row;
 use crate::editor::SearchDirection;
-use std::fs;
-use std::io::{Error, Write};
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Document {
     rows: Vec<Row>,
-    pub file_name: Option<String>,
     dirty: bool,
-    file_type: FileType,
 }
 
 impl Document {
-    pub fn open(filename: &str) -> Result<Self, std::io::Error> {
-        let contents = fs::read_to_string(filename)?;
-        let file_type = FileType::from(filename);
-        let mut rows = Vec::new();
-        for value in contents.lines() {
-            rows.push(Row::from(value));
-        }
-        Ok(Self {
-            rows,
-            file_name: Some(filename.to_string()),
-            dirty: false,
-            file_type,
-        })
-    }
-
-    pub fn file_type(&self) -> String {
-        self.file_type.name()
-    }
-
     pub fn row(&self, index: usize) -> Option<&Row> {
         self.rows.get(index)
     }
@@ -123,19 +100,6 @@ impl Document {
         self.unhighlight_rows(at.y);
     }
 
-    pub fn save(&mut self) -> Result<(), Error> {
-        if let Some(file_name) = &self.file_name {
-            let mut file = fs::File::create(file_name)?;
-            self.file_type = FileType::from(file_name);
-            for row in &mut self.rows {
-                file.write_all(row.as_bytes())?;
-                file.write_all(b"\n")?;
-            }
-            self.dirty = false;
-        }
-        Ok(())
-    }
-
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
@@ -189,7 +153,8 @@ impl Document {
         };
         for row in &mut self.rows[..until] {
             start_with_comment = row.highlight(
-                &self.file_type.highlighting_options(),
+                // FileType::from(".rs").highlighting_options(), // TODO: clean this up
+                FileType::default().highlighting_options(),
                 word,
                 start_with_comment,
             );

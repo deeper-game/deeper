@@ -24,15 +24,18 @@
 use crate::editor::Document;
 use crate::editor::Row;
 use crate::editor::Terminal;
-use std::env;
+use crate::editor::Rasterized;
 use std::time::Duration;
 use std::time::Instant;
-use termion::color;
+use std::collections::HashMap;
+use bevy::input::Input;
+use bevy::input::keyboard::KeyCode;
+use bevy::time::Time;
+use bevy::render::color::Color;
 use termion::event::Key;
 
-const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
-const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+const STATUS_FG_COLOR: Color = Color::rgb(0.25, 0.25, 0.25);
+const STATUS_BG_COLOR: Color = Color::rgb(0.94, 0.94, 0.94);
 const QUIT_TIMES: u8 = 3;
 
 #[derive(PartialEq, Copy, Clone)]
@@ -52,74 +55,71 @@ struct StatusMessage {
     time: Instant,
 }
 
+impl Default for StatusMessage {
+    fn default() -> Self {
+        Self::from("")
+    }
+}
+
 impl StatusMessage {
-    fn from(message: String) -> Self {
+    fn from(message: &str) -> Self {
         Self {
             time: Instant::now(),
-            text: message,
+            text: message.to_string(),
         }
     }
 }
 
+#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
+    quit_times: u8,
     terminal: Terminal,
     cursor_position: Position,
     offset: Position,
     document: Document,
     status_message: StatusMessage,
-    quit_times: u8,
     highlighted_word: Option<String>,
+    open_file: String,
+    filesystem: HashMap<String, Document>,
+    // prompt_callback: Option<Box<for<'a> Fn(&'a Editor)>>,
 }
 
 impl Editor {
-    pub fn run(&mut self) {
-        loop {
-            if let Err(error) = self.refresh_screen() {
-                die(error);
-            }
-            if self.should_quit {
-                break;
-            }
-            if let Err(error) = self.process_keypress() {
-                die(error);
-            }
-        }
-    }
+    // pub fn run(&mut self) {
+    //     self.refresh_screen();
+    //     if self.should_quit {
+    //         // leave editor mode
+    //     }
+    //     self.process_keypress();
+    // }
 
-    pub fn default() -> Self {
-        let args: Vec<String> = env::args().collect();
+    pub fn new() -> Self {
         let mut initial_status =
-            String::from("HELP: Ctrl-F = find | Ctrl-S = save | Ctrl-Q = quit");
-
-        let document = if let Some(file_name) = args.get(1) {
-            let doc = Document::open(file_name);
-            if let Ok(doc) = doc {
-                doc
-            } else {
-                initial_status =
-                    format!("ERROR: Could not open file: {}", file_name);
-                Document::default()
-            }
-        } else {
-            Document::default()
-        };
+            "HELP: Ctrl-F = find | Ctrl-S = save | Ctrl-Q = quit";
 
         Self {
             should_quit: false,
-            terminal: Terminal::default().expect("Failed to initialize terminal"),
-            document,
+            terminal: Terminal::default(),
+            document: Document::default(),
             cursor_position: Position::default(),
             offset: Position::default(),
             status_message: StatusMessage::from(initial_status),
             quit_times: QUIT_TIMES,
             highlighted_word: None,
+            open_file: "foo".to_string(),
+            filesystem: HashMap::new(),
+            // prompt_callback: None,
         }
     }
 
-    fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
+    pub fn rasterize(&self) -> Option<Rasterized> {
+        self.terminal.rasterize()
+    }
+
+    pub fn refresh_screen(&mut self) {
         self.terminal.cursor_hide();
-        self.terminal.cursor_position(&Position::default());
+        self.terminal.set_cursor_position(&Position::default());
         if self.should_quit {
             self.terminal.clear_screen();
             self.terminal.write("Goodbye.");
@@ -131,94 +131,85 @@ impl Editor {
                 Some(
                     self.offset
                         .y
-                        .saturating_add(self.terminal.size().height as usize),
-                ),
+                        .saturating_add(self.terminal.size().height as usize)),
             );
             self.draw_rows();
             self.draw_status_bar();
             self.draw_message_bar();
-            self.terminal.cursor_position(&Position {
+            self.terminal.set_cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
                 y: self.cursor_position.y.saturating_sub(self.offset.y),
             });
         }
         self.terminal.cursor_show();
-        self.terminal.flush()
     }
 
     fn save(&mut self) {
-        if self.document.file_name.is_none() {
-            let new_name = self.prompt("Save as: ", |_, _, _| {}).unwrap_or(None);
-            if new_name.is_none() {
-                self.status_message = StatusMessage::from("Save aborted.".to_string());
-                return;
-            }
-            self.document.file_name = new_name;
-        }
-
-        if self.document.save().is_ok() {
-            self.status_message = StatusMessage::from("File saved successfully.".to_string());
-        } else {
-            self.status_message = StatusMessage::from("Error writing file!".to_string());
-        }
+        // let new_name = self.prompt("Save as: ", |_, _, _| {}).unwrap_or(None);
+        // if new_name.is_none() {
+        //     self.status_message = StatusMessage::from("Save aborted.");
+        //     return;
+        // }
+        // self.open_file = new_name;
+        self.filesystem.insert(self.open_file.clone(), self.document.clone());
+        self.status_message = StatusMessage::from("File saved successfully.");
     }
 
-    fn search(&mut self) {
-        let old_position = self.cursor_position.clone();
-        let mut direction = SearchDirection::Forward;
-        let query = self
-            .prompt(
-                "Search (ESC to cancel, arrows to navigate): ",
-                |editor, key, query| {
-                    let mut moved = false;
-                    match key {
-                        Key::Right | Key::Down => {
-                            direction = SearchDirection::Forward;
-                            editor.move_cursor(Key::Right);
-                            moved = true;
-                        }
-                        Key::Left | Key::Up =>
-                            direction = SearchDirection::Backward,
-                        _ => direction = SearchDirection::Forward,
-                    }
-                    if let Some(position) =
-                        editor
-                            .document
-                            .find(&query, &editor.cursor_position, direction)
-                    {
-                        editor.cursor_position = position;
-                        editor.scroll();
-                    } else if moved {
-                        editor.move_cursor(Key::Left);
-                    }
-                    editor.highlighted_word = Some(query.to_string());
-                },
-            )
-            .unwrap_or(None);
+    // fn search(&mut self) {
+    //     let old_position = self.cursor_position.clone();
+    //     let mut direction = SearchDirection::Forward;
+    //     let query = self
+    //         .prompt(
+    //             "Search (ESC to cancel, arrows to navigate): ",
+    //             |editor, key, query| {
+    //                 let mut moved = false;
+    //                 match key {
+    //                     Key::Right | Key::Down => {
+    //                         direction = SearchDirection::Forward;
+    //                         editor.move_cursor(Key::Right);
+    //                         moved = true;
+    //                     }
+    //                     Key::Left | Key::Up =>
+    //                         direction = SearchDirection::Backward,
+    //                     _ => direction = SearchDirection::Forward,
+    //                 }
+    //                 if let Some(position) =
+    //                     editor
+    //                         .document
+    //                         .find(&query, &editor.cursor_position, direction)
+    //                 {
+    //                     editor.cursor_position = position;
+    //                     editor.scroll();
+    //                 } else if moved {
+    //                     editor.move_cursor(Key::Left);
+    //                 }
+    //                 editor.highlighted_word = Some(query.to_string());
+    //             },
+    //         )
+    //         .unwrap_or(None);
+    //
+    //     if query.is_none() {
+    //         self.cursor_position = old_position;
+    //         self.scroll();
+    //     }
+    //     self.highlighted_word = None;
+    // }
 
-        if query.is_none() {
-            self.cursor_position = old_position;
-            self.scroll();
-        }
-        self.highlighted_word = None;
-    }
-
-    fn process_keypress(&mut self) -> Result<(), std::io::Error> {
-        let pressed_key = self.terminal.read_key()?;
+    pub fn process_keypress(&mut self, pressed_key: Key) {
         match pressed_key {
             Key::Ctrl('q') => {
                 if self.quit_times > 0 && self.document.is_dirty() {
-                    self.status_message = StatusMessage::from(format!(
+                    self.status_message = StatusMessage::from(&format!(
                         "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
                         self.quit_times
                     ));
                     self.quit_times -= 1;
-                    return Ok(());
+                    return;
                 }
-                self.should_quit = true
+                self.should_quit = true;
             }
             Key::Ctrl('s') => self.save(),
-            Key::Ctrl('f') => self.search(),
+            // Key::Ctrl('f') => self.search(),
             Key::Char(c) => {
                 self.document.insert(&self.cursor_position, c);
                 self.move_cursor(Key::Right);
@@ -243,9 +234,8 @@ impl Editor {
         self.scroll();
         if self.quit_times < QUIT_TIMES {
             self.quit_times = QUIT_TIMES;
-            self.status_message = StatusMessage::from(String::new());
+            self.status_message = StatusMessage::from("");
         }
-        Ok(())
     }
 
     fn scroll(&mut self) {
@@ -331,7 +321,7 @@ impl Editor {
         self.cursor_position = Position { x, y }
     }
 
-    fn draw_welcome_message(&self) {
+    fn draw_welcome_message(&mut self) {
         let mut welcome_message = format!("Micro editor version 4.33");
         let width = self.terminal.size().width as usize;
         let len = welcome_message.len();
@@ -344,7 +334,7 @@ impl Editor {
         self.terminal.newline();
     }
 
-    pub fn draw_row(&self, row: &Row) {
+    pub fn draw_row(&mut self, row: &Row) {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
         let end = self.offset.x.saturating_add(width);
@@ -354,15 +344,16 @@ impl Editor {
         self.terminal.newline();
     }
 
-    fn draw_rows(&self) {
+    fn draw_rows(&mut self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height {
             self.terminal.clear_current_line();
-            if let Some(row) = self
+            let optional_row = self
                 .document
                 .row(self.offset.y.saturating_add(terminal_row as usize))
-            {
-                self.draw_row(row);
+                .cloned();
+            if let Some(row) = optional_row {
+                self.draw_row(&row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
             } else {
@@ -373,7 +364,7 @@ impl Editor {
         }
     }
 
-    fn draw_status_bar(&self) {
+    fn draw_status_bar(&mut self) {
         let mut status;
         let width = self.terminal.size().width as usize;
         let modified_indicator = if self.document.is_dirty() {
@@ -382,11 +373,8 @@ impl Editor {
             ""
         };
 
-        let mut file_name = "[No Name]".to_string();
-        if let Some(name) = &self.document.file_name {
-            file_name = name.clone();
-            file_name.truncate(20);
-        }
+        let mut file_name = self.open_file.to_string();
+        file_name.truncate(20);
         status = format!(
             "{} - {} lines{}",
             file_name,
@@ -395,8 +383,7 @@ impl Editor {
         );
 
         let line_indicator = format!(
-            "{} | {}/{}",
-            self.document.file_type(),
+            "{}/{}",
             self.cursor_position.y.saturating_add(1),
             self.document.len()
         );
@@ -414,7 +401,7 @@ impl Editor {
         self.terminal.reset_bg_color();
     }
 
-    fn draw_message_bar(&self) {
+    fn draw_message_bar(&mut self) {
         self.terminal.clear_current_line();
         let message = &self.status_message;
         if Instant::now() - message.time < Duration::new(5, 0) {
@@ -424,39 +411,35 @@ impl Editor {
         }
     }
 
-    fn prompt<C>(&mut self, prompt: &str, mut callback: C) -> Result<Option<String>, std::io::Error>
-    where
-        C: FnMut(&mut Self, Key, &String),
-    {
-        let mut result = String::new();
-        loop {
-            self.status_message = StatusMessage::from(format!("{}{}", prompt, result));
-            self.refresh_screen()?;
-            let key = self.terminal.read_key()?;
-            match key {
-                Key::Backspace => result.truncate(result.len().saturating_sub(1)),
-                Key::Char('\n') => break,
-                Key::Char(c) => {
-                    if !c.is_control() {
-                        result.push(c);
-                    }
-                }
-                Key::Esc => {
-                    result.truncate(0);
-                    break;
-                }
-                _ => (),
-            }
-            callback(self, key, &result);
-        }
-        self.status_message = StatusMessage::from(String::new());
-        if result.is_empty() {
-            return Ok(None);
-        }
-        Ok(Some(result))
-    }
-}
-
-fn die(e: std::io::Error) {
-    panic!("{}", e);
+    // fn prompt<C>(&mut self, prompt: &str, mut callback: C) -> Result<Option<String>, std::io::Error>
+    // where
+    //     C: FnMut(&mut Self, Key, &String),
+    // {
+    //     let mut result = String::new();
+    //     loop {
+    //         self.status_message = StatusMessage::from(format!("{}{}", prompt, result));
+    //         self.refresh_screen()?;
+    //         let key = self.terminal.read_key()?;
+    //         match key {
+    //             Key::Backspace => result.truncate(result.len().saturating_sub(1)),
+    //             Key::Char('\n') => break,
+    //             Key::Char(c) => {
+    //                 if !c.is_control() {
+    //                     result.push(c);
+    //                 }
+    //             }
+    //             Key::Esc => {
+    //                 result.truncate(0);
+    //                 break;
+    //             }
+    //             _ => (),
+    //         }
+    //         callback(self, key, &result);
+    //     }
+    //     self.status_message = StatusMessage::from("");
+    //     if result.is_empty() {
+    //         return Ok(None);
+    //     }
+    //     Ok(Some(result))
+    // }
 }
