@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use termion::color;
+use bevy::render::color::Color;
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum Type {
@@ -37,16 +37,16 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn to_color(self) -> impl color::Color {
+    pub fn to_color(self) -> Color {
         match self {
-            Type::Number => color::Rgb(220, 163, 163),
-            Type::Match => color::Rgb(38, 139, 210),
-            Type::String => color::Rgb(211, 54, 130),
-            Type::Character => color::Rgb(108, 113, 196),
-            Type::Comment | Type::MultilineComment => color::Rgb(133, 153, 0),
-            Type::PrimaryKeywords => color::Rgb(181, 137, 0),
-            Type::SecondaryKeywords => color::Rgb(42, 161, 152),
-            _ => color::Rgb(255, 255, 255),
+            Type::Number => Color::rgb_u8(220, 163, 163),
+            Type::Match => Color::rgb_u8(38, 139, 210),
+            Type::String => Color::rgb_u8(211, 54, 130),
+            Type::Character => Color::rgb_u8(108, 113, 196),
+            Type::Comment | Type::MultilineComment => Color::rgb_u8(133, 153, 0),
+            Type::PrimaryKeywords => Color::rgb_u8(181, 137, 0),
+            Type::SecondaryKeywords => Color::rgb_u8(42, 161, 152),
+            _ => Color::rgb_u8(255, 255, 255),
         }
     }
 }

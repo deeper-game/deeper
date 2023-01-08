@@ -174,18 +174,12 @@ impl TerminalTile {
                 let convex_combine = |a: f32, b: f32| {
                     (scale * a) + ((1.0 - scale) * b)
                 };
-                // if self.character != ' ' {
-                //     print!("{}", if scale_u8 > 50 { '#' } else { ' ' });
-                // }
                 let r = convex_combine(fr, br);
                 let g = convex_combine(fg, bg);
                 let b = convex_combine(fb, bb);
                 let a = convex_combine(fa, ba);
                 result.set(x, y, Color::rgba_linear(r, g, b, a).as_rgba_u32());
             }
-            // if self.character != ' ' {
-            //     println!("");
-            // }
         }
 
         Some(result)
@@ -260,6 +254,7 @@ impl Terminal {
         self.screen.clear();
         self.screen.resize(self.size.width * self.size.height,
                            TerminalTile::default());
+        self.set_cursor_position(&Position::default());
     }
 
     pub fn set_cursor_position(&mut self, position: &Position) {
@@ -274,11 +269,15 @@ impl Terminal {
                 character: c,
                 formatting: self.formatting.clone(),
             };
+
             index += 1;
             if index >= self.size.width * self.size.height {
                 index = (self.size.width * self.size.height) - 1;
             }
         }
+
+        self.cursor_position.x = index % self.size.width;
+        self.cursor_position.y = index / self.size.width;
     }
 
     pub fn carriage_return(&mut self) {
@@ -288,6 +287,7 @@ impl Terminal {
     pub fn newline(&mut self) {
         self.cursor_position.x = 0;
         self.cursor_position.y += 1;
+        self.cursor_position.y %= self.size.height;
     }
 
     pub fn cursor_hide(&mut self) {

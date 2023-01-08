@@ -24,6 +24,7 @@
 use crate::editor::highlighting;
 use crate::editor::HighlightingOptions;
 use crate::editor::SearchDirection;
+use crate::editor::Terminal;
 use std::cmp;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -47,10 +48,9 @@ impl From<&str> for Row {
 }
 
 impl Row {
-    pub fn render(&self, start: usize, end: usize) -> String {
+    pub fn render(&self, terminal: &mut Terminal, start: usize, end: usize) {
         let end = cmp::min(end, self.string.len());
         let start = cmp::min(start, end);
-        let mut result = String::new();
         let mut current_highlighting = &highlighting::Type::None;
         for (index, grapheme) in self.string[..]
             .graphemes(true)
@@ -65,20 +65,18 @@ impl Row {
                     .unwrap_or(&highlighting::Type::None);
                 if highlighting_type != current_highlighting {
                     current_highlighting = highlighting_type;
-                    // let start_highlight =
-                    //     format!("{}", termion::color::Fg(highlighting_type.to_color()));
-                    // result.push_str(&start_highlight[..]);
+                    terminal.set_fg_color(highlighting_type.to_color());
                 }
                 if c == '\t' {
-                    result.push_str("  ");
+                    terminal.write("  ");
                 } else {
-                    result.push(c);
+                    let mut s = String::new();
+                    s.push(c);
+                    terminal.write(&s);
                 }
             }
         }
-        // let end_highlight = format!("{}", termion::color::Fg(color::Reset));
-        // result.push_str(&end_highlight[..]);
-        result
+        terminal.reset_fg_color();
     }
 
     pub fn len(&self) -> usize {
