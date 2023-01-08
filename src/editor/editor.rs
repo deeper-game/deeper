@@ -86,14 +86,6 @@ pub struct Editor {
 }
 
 impl Editor {
-    // pub fn run(&mut self) {
-    //     self.refresh_screen();
-    //     if self.should_quit {
-    //         // leave editor mode
-    //     }
-    //     self.process_keypress();
-    // }
-
     pub fn new() -> Self {
         let mut initial_status =
             "HELP: Ctrl-F = find | Ctrl-S = save | Ctrl-Q = quit";
@@ -338,8 +330,7 @@ impl Editor {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
         let end = self.offset.x.saturating_add(width);
-        let row = row.render(start, end);
-        self.terminal.write(&row);
+        row.render(&mut self.terminal, start, end);
         self.terminal.carriage_return();
         self.terminal.newline();
     }
