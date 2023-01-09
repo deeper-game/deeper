@@ -6,11 +6,13 @@ use bevy_rapier3d::prelude::*;
 use bevy_fps_controller::controller::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
+use crate::key_translator::TranslatedKey;
 use crate::level::Level;
 use crate::outline::{OutlinePlugin, OutlineMaterial};
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 
 pub mod outline;
+pub mod key_translator;
 pub mod magic;
 pub mod level;
 pub mod ui;
@@ -32,6 +34,7 @@ pub fn main() {
         .add_plugin(crate::assets::AssetsPlugin)
         .add_plugin(crate::ui::UiPlugin)
         .add_plugin(crate::inventory::InventoryPlugin)
+        .add_plugin(crate::key_translator::KeyTranslatorPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
@@ -180,178 +183,21 @@ fn setup(
     });
 }
 
-fn keycode_to_letter(keycode: KeyCode, shift: bool) -> Option<char> {
-    if !shift {
-        match keycode {
-            KeyCode::Key1 => Some('1'),
-            KeyCode::Key2 => Some('2'),
-            KeyCode::Key3 => Some('3'),
-            KeyCode::Key4 => Some('4'),
-            KeyCode::Key5 => Some('5'),
-            KeyCode::Key6 => Some('6'),
-            KeyCode::Key7 => Some('7'),
-            KeyCode::Key8 => Some('8'),
-            KeyCode::Key9 => Some('9'),
-            KeyCode::Key0 => Some('0'),
-            KeyCode::A => Some('a'),
-            KeyCode::B => Some('b'),
-            KeyCode::C => Some('c'),
-            KeyCode::D => Some('d'),
-            KeyCode::E => Some('e'),
-            KeyCode::F => Some('f'),
-            KeyCode::G => Some('g'),
-            KeyCode::H => Some('h'),
-            KeyCode::I => Some('i'),
-            KeyCode::J => Some('j'),
-            KeyCode::K => Some('k'),
-            KeyCode::L => Some('l'),
-            KeyCode::M => Some('m'),
-            KeyCode::N => Some('n'),
-            KeyCode::O => Some('o'),
-            KeyCode::P => Some('p'),
-            KeyCode::Q => Some('q'),
-            KeyCode::R => Some('r'),
-            KeyCode::S => Some('s'),
-            KeyCode::T => Some('t'),
-            KeyCode::U => Some('u'),
-            KeyCode::V => Some('v'),
-            KeyCode::W => Some('w'),
-            KeyCode::X => Some('x'),
-            KeyCode::Y => Some('y'),
-            KeyCode::Z => Some('z'),
-            KeyCode::Space => Some(' '),
-            KeyCode::Return => Some('\n'),
-            KeyCode::Tab => Some('\t'),
-            KeyCode::Comma => Some(','),
-            KeyCode::Period => Some('.'),
-            KeyCode::Apostrophe => Some('\''),
-            KeyCode::Equals => Some('='),
-            KeyCode::Minus => Some('-'),
-            KeyCode::Slash => Some('/'),
-            KeyCode::Backslash => Some('\\'),
-            KeyCode::Grave => Some('`'),
-            KeyCode::Semicolon => Some(';'),
-            KeyCode::Colon => Some(':'),
-            KeyCode::LBracket => Some('['),
-            KeyCode::RBracket => Some(']'),
-            _ => None,
-        }
-    } else {
-        match keycode {
-            KeyCode::Key1 => Some('!'),
-            KeyCode::Key2 => Some('@'),
-            KeyCode::Key3 => Some('#'),
-            KeyCode::Key4 => Some('$'),
-            KeyCode::Key5 => Some('%'),
-            KeyCode::Key6 => Some('^'),
-            KeyCode::Key7 => Some('&'),
-            KeyCode::Key8 => Some('*'),
-            KeyCode::Key9 => Some('('),
-            KeyCode::Key0 => Some(')'),
-            KeyCode::A => Some('A'),
-            KeyCode::B => Some('B'),
-            KeyCode::C => Some('C'),
-            KeyCode::D => Some('D'),
-            KeyCode::E => Some('E'),
-            KeyCode::F => Some('F'),
-            KeyCode::G => Some('G'),
-            KeyCode::H => Some('H'),
-            KeyCode::I => Some('I'),
-            KeyCode::J => Some('J'),
-            KeyCode::K => Some('K'),
-            KeyCode::L => Some('L'),
-            KeyCode::M => Some('M'),
-            KeyCode::N => Some('N'),
-            KeyCode::O => Some('O'),
-            KeyCode::P => Some('P'),
-            KeyCode::Q => Some('Q'),
-            KeyCode::R => Some('R'),
-            KeyCode::S => Some('S'),
-            KeyCode::T => Some('T'),
-            KeyCode::U => Some('U'),
-            KeyCode::V => Some('V'),
-            KeyCode::W => Some('W'),
-            KeyCode::X => Some('X'),
-            KeyCode::Y => Some('Y'),
-            KeyCode::Z => Some('Z'),
-            KeyCode::Space => Some(' '),
-            KeyCode::Return => Some('\n'),
-            KeyCode::Comma => Some('<'),
-            KeyCode::Period => Some('>'),
-            KeyCode::Apostrophe => Some('"'),
-            KeyCode::Equals => Some('+'),
-            KeyCode::Minus => Some('_'),
-            KeyCode::Slash => Some('?'),
-            KeyCode::Backslash => Some('|'),
-            KeyCode::Grave => Some('~'),
-            KeyCode::Semicolon => Some(':'),
-            KeyCode::Colon => Some(':'),
-            KeyCode::LBracket => Some('{'),
-            KeyCode::RBracket => Some('}'),
-            _ => None,
-        }
-    }
-}
-
-fn keycode_to_key(
-    keycode: KeyCode,
-    input: &Input<KeyCode>
-) -> Option<termion::event::Key> {
-    use termion::event::Key;
-
-    let is_control =
-        input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl);
-    let is_alt =
-        input.pressed(KeyCode::LAlt) || input.pressed(KeyCode::RAlt);
-    let is_shift =
-        input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift);
-
-    if is_control && !is_alt {
-        return Some(Key::Ctrl(keycode_to_letter(keycode, is_shift)?));
-    }
-    if !is_control && is_alt {
-        return Some(Key::Alt(keycode_to_letter(keycode, is_shift)?));
-    }
-    if is_control && is_alt {
-        return None;
-    }
-    if let Some(character) = keycode_to_letter(keycode, is_shift) {
-        return Some(Key::Char(character));
-    }
-
-    match keycode {
-        KeyCode::Back            => Some(Key::Backspace),
-        KeyCode::Left            => Some(Key::Left),
-        KeyCode::Right           => Some(Key::Right),
-        KeyCode::Up              => Some(Key::Up),
-        KeyCode::Down            => Some(Key::Down),
-        KeyCode::Home            => Some(Key::Home),
-        KeyCode::End             => Some(Key::End),
-        KeyCode::PageUp          => Some(Key::PageUp),
-        KeyCode::PageDown        => Some(Key::PageDown),
-        KeyCode::Tab if is_shift => Some(Key::BackTab),
-        KeyCode::Delete          => Some(Key::Delete),
-        KeyCode::Insert          => Some(Key::Insert),
-        KeyCode::Escape          => Some(Key::Esc),
-        _                        => None,
-    }
-}
-
 pub fn run_editor(
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut screens: Query<(&mut crate::editor::Screen, &Handle<StandardMaterial>)>,
     screen_activated: Res<ScreenActivated>,
-    keyboard_input: Res<Input<KeyCode>>,
+    mut keyboard_events: EventReader<TranslatedKey>,
 ) {
     if let Some(entity) = screen_activated.entity {
         let (mut screen, material_handle) = screens.get_mut(entity).unwrap();
 
         let mut needs_rerender = false;
 
-        for keycode in keyboard_input.get_just_pressed() {
-            if let Some(key) = keycode_to_key(*keycode, &keyboard_input) {
-                screen.editor.process_keypress(key);
+        for key in keyboard_events.iter() {
+            if key.pressed {
+                screen.editor.process_keypress(key.key);
                 needs_rerender = true;
             }
         }
