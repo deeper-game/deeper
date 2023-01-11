@@ -44,7 +44,7 @@ pub enum SearchDirection {
     Backward,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -52,7 +52,7 @@ pub struct Position {
 
 struct StatusMessage {
     text: String,
-    time: Instant,
+    time: Option<Instant>,
 }
 
 impl Default for StatusMessage {
@@ -64,10 +64,15 @@ impl Default for StatusMessage {
 impl StatusMessage {
     fn from(message: &str) -> Self {
         Self {
-            time: Instant::now(),
+            time: None,
             text: message.to_string(),
         }
     }
+}
+
+enum PromptMode {
+    Save,
+    Search,
 }
 
 #[derive(Default)]
@@ -82,7 +87,8 @@ pub struct Editor {
     highlighted_word: Option<String>,
     open_file: String,
     filesystem: HashMap<String, Document>,
-    // prompt_callback: Option<Box<for<'a> Fn(&'a Editor)>>,
+    prompt_mode: Option<PromptMode>,
+    prompt_string: String,
 }
 
 impl Editor {
@@ -99,9 +105,10 @@ impl Editor {
             status_message: StatusMessage::from(initial_status),
             quit_times: QUIT_TIMES,
             highlighted_word: None,
-            open_file: "foo".to_string(),
+            open_file: "untitled.txt".to_string(),
             filesystem: HashMap::new(),
-            // prompt_callback: None,
+            prompt_mode: None,
+            prompt_string: "".to_string(),
         }
     }
 
@@ -136,15 +143,93 @@ impl Editor {
         self.terminal.cursor_show();
     }
 
-    fn save(&mut self) {
-        // let new_name = self.prompt("Save as: ", |_, _, _| {}).unwrap_or(None);
-        // if new_name.is_none() {
-        //     self.status_message = StatusMessage::from("Save aborted.");
-        //     return;
-        // }
-        // self.open_file = new_name;
-        self.filesystem.insert(self.open_file.clone(), self.document.clone());
-        self.status_message = StatusMessage::from("File saved successfully.");
+    pub fn process_keypress(&mut self, pressed_key: Key) {
+        match self.prompt_mode {
+            Some(PromptMode::Save) => {
+                self.save_keypress(pressed_key);
+                return;
+            },
+            Some(PromptMode::Search) => {
+                self.search_keypress(pressed_key);
+                return;
+            },
+            None => {},
+        }
+
+        match pressed_key {
+            Key::Ctrl('q') => {
+                if self.quit_times > 0 && self.document.is_dirty() {
+                    self.status_message = StatusMessage::from(&format!(
+                        "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
+                        self.quit_times
+                    ));
+                    self.quit_times -= 1;
+                    return;
+                }
+                self.should_quit = true;
+            }
+            Key::Ctrl('s') => {
+                self.prompt_mode = Some(PromptMode::Save);
+                self.status_message =
+                    StatusMessage::from("Save as: ");
+            },
+            Key::Ctrl('f') => {
+                self.prompt_mode = Some(PromptMode::Search);
+                self.status_message =
+                    StatusMessage::from("Search (ESC to cancel, arrows to navigate): ");
+            },
+            Key::Char(c) => {
+                self.document.insert(&self.cursor_position, c);
+                self.move_cursor(Key::Right);
+            }
+            Key::Delete => self.document.delete(&self.cursor_position),
+            Key::Backspace => {
+                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
+                    self.move_cursor(Key::Left);
+                    self.document.delete(&self.cursor_position);
+                }
+            }
+            Key::Up
+            | Key::Down
+            | Key::Left
+            | Key::Right
+            | Key::PageUp
+            | Key::PageDown
+            | Key::End
+            | Key::Home => self.move_cursor(pressed_key),
+            _ => (),
+        }
+
+        self.scroll();
+        if self.quit_times < QUIT_TIMES {
+            self.quit_times = QUIT_TIMES;
+            self.status_message = StatusMessage::from("");
+        }
+    }
+
+    fn save_keypress(&mut self, pressed_key: Key) {
+        match pressed_key {
+            Key::Esc => {
+                self.prompt_mode = None;
+                self.prompt_string = "".to_string();
+                return;
+            },
+            Key::Char('\n') => {
+                self.open_file = self.prompt_string.clone();
+                self.prompt_mode = None;
+                self.prompt_string = "".to_string();
+                self.filesystem.insert(self.open_file.clone(),
+                                       self.document.clone());
+                self.status_message =
+                    StatusMessage::from("File saved successfully.");
+            },
+            _ => {
+                self.prompt_keypress("Save as: ", pressed_key);
+            },
+        }
+    }
+
+    fn search_keypress(&mut self, pressed_key: Key) {
     }
 
     // fn search(&mut self) {
@@ -186,49 +271,6 @@ impl Editor {
     //     }
     //     self.highlighted_word = None;
     // }
-
-    pub fn process_keypress(&mut self, pressed_key: Key) {
-        match pressed_key {
-            Key::Ctrl('q') => {
-                if self.quit_times > 0 && self.document.is_dirty() {
-                    self.status_message = StatusMessage::from(&format!(
-                        "WARNING! File has unsaved changes. Press Ctrl-Q {} more times to quit.",
-                        self.quit_times
-                    ));
-                    self.quit_times -= 1;
-                    return;
-                }
-                self.should_quit = true;
-            }
-            Key::Ctrl('s') => self.save(),
-            // Key::Ctrl('f') => self.search(),
-            Key::Char(c) => {
-                self.document.insert(&self.cursor_position, c);
-                self.move_cursor(Key::Right);
-            }
-            Key::Delete => self.document.delete(&self.cursor_position),
-            Key::Backspace => {
-                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
-                    self.move_cursor(Key::Left);
-                    self.document.delete(&self.cursor_position);
-                }
-            }
-            Key::Up
-            | Key::Down
-            | Key::Left
-            | Key::Right
-            | Key::PageUp
-            | Key::PageDown
-            | Key::End
-            | Key::Home => self.move_cursor(pressed_key),
-            _ => (),
-        }
-        self.scroll();
-        if self.quit_times < QUIT_TIMES {
-            self.quit_times = QUIT_TIMES;
-            self.status_message = StatusMessage::from("");
-        }
-    }
 
     fn scroll(&mut self) {
         let Position { x, y } = self.cursor_position;
@@ -395,11 +437,44 @@ impl Editor {
     fn draw_message_bar(&mut self) {
         self.terminal.clear_current_line();
         let message = &self.status_message;
-        if Instant::now() - message.time < Duration::new(5, 0) {
+
+        let mut should_write_message = false;
+        if let Some(time) = message.time {
+            if Instant::now() - time < Duration::new(5, 0) {
+                should_write_message = true;
+            }
+        } else {
+            should_write_message = true;
+        }
+
+        if should_write_message {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().width as usize);
             self.terminal.write(&text);
         }
+    }
+
+    fn prompt_keypress(&mut self, prefix: &str, pressed_key: Key) -> bool {
+        let result = match pressed_key {
+            Key::Backspace => {
+                self.prompt_string.truncate(
+                    self.prompt_string.len().saturating_sub(1));
+                true
+            },
+            Key::Char(c) => {
+                if !c.is_control() {
+                    self.prompt_string.push(c);
+                }
+                true
+            },
+            _ => false,
+        };
+        if result {
+            println!("DEBUG: {}", self.prompt_string);
+            self.status_message = StatusMessage::from(
+                &format!("{}{}", prefix, self.prompt_string));
+        }
+        result
     }
 
     // fn prompt<C>(&mut self, prompt: &str, mut callback: C) -> Result<Option<String>, std::io::Error>
