@@ -257,6 +257,10 @@ impl Terminal {
         self.set_cursor_position(&Position::default());
     }
 
+    pub fn get_cursor_position(&self) -> Position {
+        self.cursor_position.clone()
+    }
+
     pub fn set_cursor_position(&mut self, position: &Position) {
         self.cursor_position = position.clone();
     }
@@ -286,8 +290,9 @@ impl Terminal {
 
     pub fn newline(&mut self) {
         self.cursor_position.x = 0;
-        self.cursor_position.y += 1;
-        self.cursor_position.y %= self.size.height;
+        if self.cursor_position.y < self.size.height - 1 {
+            self.cursor_position.y += 1;
+        }
     }
 
     pub fn cursor_hide(&mut self) {
