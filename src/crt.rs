@@ -10,6 +10,7 @@ impl Plugin for CrtPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(ScreenActivated { entity: None })
+            .add_plugin(MaterialPlugin::<CrtMaterial>::default())
             .add_startup_system(create_screen)
             .add_system(run_editor);
     }
@@ -23,9 +24,10 @@ pub struct ScreenActivated {
 fn create_screen(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut crt_materials: ResMut<Assets<CrtMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
 ) {
     use bevy::render::render_resource::*;
 
@@ -35,18 +37,18 @@ fn create_screen(
         &[255u8, 0u8, 255u8, 255u8],
         TextureFormat::Bgra8UnormSrgb);
 
-    let material_handle = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(image)),
-        // reflectance: 0.02,
-        unlit: false,
-        ..default()
+    let potato: Handle<Image> = asset_server.load("crt-potato-thin.png");
+
+    let crt_material_handle = crt_materials.add(CrtMaterial {
+        color_texture: Some(images.add(image)),
+        overlay_texture: Some(potato),
     });
 
     commands.spawn_bundle((
         crate::editor::Screen::new(crate::editor::Editor::new()),
-        PbrBundle {
+        MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Plane { size: 0.25 })),
-            material: material_handle,
+            material: crt_material_handle,
             transform: Transform::from_xyz(1.0, 0.75, 1.0),
             //.looking_at(Vec3::new(1.5, 1.5, 1.5), Vec3::new(0.0, 1.0, 0.0)),
             ..default()
@@ -62,8 +64,8 @@ fn create_screen(
 
 fn run_editor(
     mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut screens: Query<(&mut crate::editor::Screen, &Handle<StandardMaterial>)>,
+    mut materials: ResMut<Assets<CrtMaterial>>,
+    mut screens: Query<(&mut crate::editor::Screen, &Handle<CrtMaterial>)>,
     screen_activated: Res<ScreenActivated>,
     mut keyboard_events: EventReader<TranslatedKey>,
 ) {
@@ -89,7 +91,7 @@ fn run_editor(
 
         let image_handle =
             materials.get_mut(material_handle).unwrap()
-            .base_color_texture.clone().unwrap();
+            .color_texture.clone().unwrap();
         let image: &mut Image = images.get_mut(&image_handle).unwrap();
 
         {
@@ -107,5 +109,26 @@ fn run_editor(
             }
         }
 
+    }
+}
+
+use bevy::reflect::TypeUuid;
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+
+// This is the struct that will be passed to your shader
+#[derive(AsBindGroup, TypeUuid, Debug, Clone)]
+#[uuid = "ac413474-8412-4933-b03b-a9876282ca33"]
+pub struct CrtMaterial {
+    #[texture(1)]
+    #[sampler(2)]
+    color_texture: Option<Handle<Image>>,
+    #[texture(3)]
+    #[sampler(4)]
+    overlay_texture: Option<Handle<Image>>,
+}
+
+impl Material for CrtMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/crt_material.wgsl".into()
     }
 }
