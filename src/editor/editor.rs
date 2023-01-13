@@ -470,7 +470,6 @@ impl Editor {
             _ => false,
         };
         if result {
-            println!("DEBUG: {}", self.prompt_string);
             self.status_message = StatusMessage::from(
                 &format!("{}{}", prefix, self.prompt_string));
         }
