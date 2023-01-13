@@ -2,13 +2,14 @@ use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
-use bevy_rapier3d::prelude::*;
 use bevy_fps_controller::controller::*;
+use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
 use crate::key_translator::TranslatedKey;
+use crate::interact::{Interactable, Item};
 use crate::level::Level;
-use crate::outline::{OutlinePlugin, OutlineMaterial};
+use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 
 pub mod outline;
@@ -18,6 +19,7 @@ pub mod level;
 pub mod ui;
 pub mod assets;
 pub mod inventory;
+pub mod interact;
 pub mod editor;
 pub mod crt;
 
@@ -26,37 +28,22 @@ pub fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .insert_resource(RapierConfiguration::default())
-        .insert_resource(Selected { entity: None })
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(FpsControllerPlugin)
-        .add_plugin(OutlinePlugin)
+        .add_plugin(crate::outline::OutlinePlugin)
         .add_plugin(crate::assets::AssetsPlugin)
         .add_plugin(crate::ui::UiPlugin)
         .add_plugin(crate::inventory::InventoryPlugin)
+        .add_plugin(crate::interact::InteractPlugin)
         .add_plugin(crate::key_translator::KeyTranslatorPlugin)
         .add_plugin(crate::crt::CrtPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
-        .add_system(interaction_glow)
-        .add_system(interact)
         .add_startup_system(setup)
         //.add_system(movement)
         .run();
-}
-
-#[derive(Component)]
-pub struct Interactable;
-
-#[derive(Component)]
-pub struct Item {
-    item_type: ItemType,
-}
-
-#[derive(Resource)]
-pub struct Selected {
-    entity: Option<Entity>,
 }
 
 fn setup(
@@ -163,69 +150,5 @@ pub fn manage_cursor(
         for mut controller in &mut controllers {
             controller.enable_input = false;
         }
-    }
-}
-
-pub fn interact(
-    mut commands: Commands,
-    mouse: Res<Input<MouseButton>>,
-    selected: Res<Selected>,
-    items: Query<&Item>,
-    mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
-    screens: Query<&crate::editor::Screen>,
-    mut screen_activated: ResMut<crate::crt::ScreenActivated>,
-    mut controllers: Query<&mut FpsController>,
-) {
-    let mut inventory = inventories.single_mut();
-    if mouse.just_pressed(MouseButton::Right) {
-        if let Some(entity) = selected.entity {
-            if let Ok(item) = items.get(entity) {
-                let item_type = item.item_type.clone();
-                commands.entity(entity).despawn();
-                inventory.insert(&InventoryItem { item_type, equipped: false });
-            }
-            if screens.get(entity).is_ok() {
-                screen_activated.entity = Some(entity);
-                for mut controller in &mut controllers {
-                    controller.enable_input = false;
-                }
-            }
-        }
-    }
-}
-
-pub fn interaction_glow(
-    rapier_context: Res<RapierContext>,
-    mut selected: ResMut<Selected>,
-    mut outlines: ResMut<Assets<OutlineMaterial>>,
-    mut interactables: Query<&Handle<OutlineMaterial>,
-                             (With<GlobalTransform>, With<Collider>, With<Interactable>)>,
-    player: Query<&GlobalTransform, With<RenderPlayer>>,
-) {
-    let camera: &GlobalTransform = player.single();
-    if let Some((entity, toi)) = rapier_context.cast_ray(
-        camera.translation(), camera.forward(), 2.0, false,
-        QueryFilter::exclude_dynamic(),
-    ) {
-        if selected.entity != Some(entity) {
-            if let Some(e) = selected.entity {
-                if let Ok(old_material) = interactables.get_mut(e) {
-                    outlines.get_mut(old_material).unwrap().width = 0.0;
-                }
-            }
-            selected.entity = None;
-
-            if let Ok(new_material) = interactables.get(entity) {
-                outlines.get_mut(new_material).unwrap().width = 3.0;
-                selected.entity = Some(entity);
-            }
-        }
-    } else {
-        if let Some(e) = selected.entity {
-            if let Ok(old_material) = interactables.get(e) {
-                outlines.get_mut(old_material).unwrap().width = 0.0;
-            }
-        }
-        selected.entity = None;
     }
 }

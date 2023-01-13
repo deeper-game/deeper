@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::Collider;
-use crate::Interactable;
-use crate::OutlineMaterial;
+use crate::interact::Interactable;
+use crate::outline::OutlineMaterial;
 use crate::key_translator::TranslatedKey;
 
 pub struct CrtPlugin;
