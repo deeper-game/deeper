@@ -66,8 +66,8 @@ pub fn show_inventory(
             parent.spawn(NodeBundle {
                 style: Style {
                     size: Size {
-                        width: Val::Px(512.0),
-                        height: Val::Px(128.0),
+                        width: Val::Px(513.0),
+                        height: Val::Px(129.0),
                     },
                     flex_wrap: FlexWrap::Wrap,
                     align_items: AlignItems::Center,
