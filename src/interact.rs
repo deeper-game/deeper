@@ -62,12 +62,14 @@ pub fn interaction_glow(
     mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut interactables: Query<&Handle<OutlineMaterial>,
                              (With<GlobalTransform>, With<Collider>, With<Interactable>)>,
-    player: Query<&GlobalTransform, With<RenderPlayer>>,
+    camera: Query<&GlobalTransform, With<RenderPlayer>>,
+    player: Query<Entity, With<LogicalPlayer>>,
 ) {
-    let camera: &GlobalTransform = player.single();
+    let camera_transform = camera.single();
+    let player_entity = player.single();
     if let Some((entity, toi)) = rapier_context.cast_ray(
-        camera.translation(), camera.forward(), 2.0, false,
-        QueryFilter::exclude_dynamic(),
+        camera_transform.translation(), camera_transform.forward(), 2.0, false,
+        QueryFilter::default().exclude_rigid_body(player_entity),
     ) {
         if selected.entity != Some(entity) {
             if let Some(e) = selected.entity {
