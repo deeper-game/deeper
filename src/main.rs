@@ -101,6 +101,8 @@ fn setup(
             ..default()
         },
         FpsController {
+            walk_speed: 5.0,
+            run_speed: 8.0,
             key_fly: KeyCode::Grave,
             ..default()
         },
