@@ -11,6 +11,7 @@ use crate::interact::{Interactable, Item};
 use crate::level::Level;
 use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
+use crate::projectile::Projectile;
 
 pub mod outline;
 pub mod key_translator;
@@ -22,6 +23,7 @@ pub mod inventory;
 pub mod interact;
 pub mod editor;
 pub mod crt;
+pub mod projectile;
 
 pub fn main() {
     App::new()
@@ -38,9 +40,11 @@ pub fn main() {
         .add_plugin(crate::interact::InteractPlugin)
         .add_plugin(crate::key_translator::KeyTranslatorPlugin)
         .add_plugin(crate::crt::CrtPlugin)
+        .add_plugin(crate::projectile::ProjectilePlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
+        .add_system(spawn_projectiles)
         .add_startup_system(setup)
         //.add_system(movement)
         .run();
@@ -96,7 +100,10 @@ fn setup(
             yaw: TAU * 5.0 / 8.0,
             ..default()
         },
-        FpsController { ..default() },
+        FpsController {
+            key_fly: KeyCode::Grave,
+            ..default()
+        },
         Inventory::new(),
     ));
     commands.spawn((
@@ -128,6 +135,28 @@ fn setup(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
+}
+
+fn spawn_projectiles(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    keyboard: Res<Input<KeyCode>>,
+    player: Query<&GlobalTransform, With<RenderPlayer>>,
+) {
+
+    if keyboard.just_pressed(KeyCode::F) {
+        let camera = player.single();
+        let velocity = 0.1 * camera.forward();
+        commands.spawn_bundle((
+            Projectile { velocity },
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
+                material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
+                transform: camera.compute_transform(),
+                ..default()
+            }));
+    }
 }
 
 pub fn manage_cursor(
