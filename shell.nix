@@ -2,9 +2,9 @@
 let
   nixpkgs = import (import nix/nixpkgs.nix) { };
 in nixpkgs.callPackage (
-  { stdenv, pkgs, lib }:
+  { clangStdenv, pkgs, lib }:
 
-  stdenv.mkDerivation rec {
+  clangStdenv.mkDerivation ((rec {
     pname = "deeper";
     version = "0.1.0";
 
@@ -16,9 +16,10 @@ in nixpkgs.callPackage (
     nativeBuildInputs = [
       pkgs.pkgconfig
       pkgs.gdb
-    ] ++ lib.optionals stdenv.isLinux [
+    ] ++ lib.optionals clangStdenv.isLinux [
       pkgs.valgrind
       pkgs.renderdoc
+      pkgs.mold
     ];
 
     buildInputs = [
@@ -28,7 +29,7 @@ in nixpkgs.callPackage (
       pkgs.shaderc.lib
       pkgs.SDL2
       pkgs.vulkan-loader
-    ] ++ lib.optionals stdenv.isLinux [
+    ] ++ lib.optionals clangStdenv.isLinux [
       pkgs.alsaLib
       pkgs.xorg.libX11
       pkgs.xorg.libXcursor
@@ -38,7 +39,7 @@ in nixpkgs.callPackage (
       pkgs.mesa
       pkgs.udev
       pkgs.vulkan-validation-layers
-    ] ++ lib.optionals stdenv.isDarwin [
+    ] ++ lib.optionals clangStdenv.isDarwin [
       pkgs.darwin.apple_sdk.frameworks.AppKit
     ];
 
@@ -49,7 +50,7 @@ in nixpkgs.callPackage (
     #   else "$VK_LAYER_PATH";
 
     LD_LIBRARY_PATH =
-      if stdenv.isLinux
+      if clangStdenv.isLinux
       then lib.makeLibraryPath buildInputs
       else "$LD_LIBRARY_PATH";
 
@@ -82,5 +83,8 @@ in nixpkgs.callPackage (
           '';
         }
     else "";
-  }
+  }) // (if clangStdenv.isLinux then {
+    CARGO_LINKER = "clang";
+    CARGO_RUSTFLAGS = "-C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
+  } else {}))
 ) {}
