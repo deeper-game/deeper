@@ -12,6 +12,7 @@ use crate::level::Level;
 use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 use crate::projectile::Projectile;
+use crate::enemy::spawn_enemy;
 
 pub mod outline;
 pub mod key_translator;
@@ -24,6 +25,7 @@ pub mod interact;
 pub mod editor;
 pub mod crt;
 pub mod projectile;
+pub mod enemy;
 
 pub fn main() {
     App::new()
@@ -41,6 +43,7 @@ pub fn main() {
         .add_plugin(crate::key_translator::KeyTranslatorPlugin)
         .add_plugin(crate::crt::CrtPlugin)
         .add_plugin(crate::projectile::ProjectilePlugin)
+        .add_plugin(crate::enemy::EnemyPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(manage_cursor)
@@ -60,6 +63,7 @@ fn setup(
     let level = Level::from_png(
         &std::fs::File::open("./assets/level.png").unwrap());
 
+    spawn_enemy(&mut commands,&mut meshes,&mut materials, Vec3{x:1.0, y:0.75, z:1.5});
     for y in 0 .. level.height {
         for x in 0 .. level.width {
             if level.has_wall(x, y).unwrap() {
