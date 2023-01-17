@@ -1454,7 +1454,6 @@ dependencies = [
  "bevy_sprite3d",
  "bitvec",
  "noto-sans-mono-bitmap",
- "png 0.17.7",
  "unicode-segmentation",
  "wgpu",
  "wgpu-types",
