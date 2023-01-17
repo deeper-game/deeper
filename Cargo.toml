@@ -16,7 +16,6 @@ bitvec = "*"
 png = "*"
 wgpu = "*"
 wgpu-types = "*"
-termion = "*" # temporary until editor code is cleaned up
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
 

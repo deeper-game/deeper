@@ -15,6 +15,7 @@ use crate::projectile::Projectile;
 use crate::enemy::spawn_enemy;
 
 pub mod outline;
+pub mod terminal_key;
 pub mod key_translator;
 pub mod magic;
 pub mod level;
