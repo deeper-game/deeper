@@ -59,7 +59,10 @@ pub const OUTLINE_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 7053223528096556000);
 
 pub const ATTRIBUTE_OUTLINE_NORMAL: MeshVertexAttribute =
-    MeshVertexAttribute::new("OutlineNormal", 9885409170, VertexFormat::Float32x3);
+    MeshVertexAttribute::new("OutlineNormal",
+                             // large random number that fits in 32 bits
+                             1295474578,
+                             VertexFormat::Float32x3);
 
 /// Plugin which enables outline shader
 pub struct OutlinePlugin;
