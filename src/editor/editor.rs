@@ -25,6 +25,7 @@ use crate::editor::Document;
 use crate::editor::Row;
 use crate::editor::Terminal;
 use crate::editor::Rasterized;
+use crate::terminal_key::Key;
 use std::time::Duration;
 use std::time::Instant;
 use std::collections::HashMap;
@@ -32,7 +33,6 @@ use bevy::input::Input;
 use bevy::input::keyboard::KeyCode;
 use bevy::time::Time;
 use bevy::render::color::Color;
-use termion::event::Key;
 
 const STATUS_FG_COLOR: Color = Color::rgb(0.25, 0.25, 0.25);
 const STATUS_BG_COLOR: Color = Color::rgb(0.94, 0.94, 0.94);

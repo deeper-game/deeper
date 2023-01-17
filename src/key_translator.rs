@@ -1,6 +1,6 @@
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
-use termion::event::Key;
+use crate::terminal_key::Key;
 
 pub struct KeyTranslatorPlugin;
 
