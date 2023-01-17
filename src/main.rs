@@ -6,6 +6,7 @@ use bevy_fps_controller::controller::*;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
+use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
 use crate::level::Level;
@@ -47,47 +48,18 @@ pub fn main() {
         .add_plugin(crate::enemy::EnemyPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
+        .add_startup_system(setup)
         .add_system(manage_cursor)
         .add_system(spawn_projectiles)
-        .add_startup_system(setup)
+        .add_system_set(SystemSet::on_enter(GameState::Ready)
+                        .with_system(spawn_level))
         //.add_system(movement)
         .run();
 }
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut outlines: ResMut<Assets<OutlineMaterial>>,
-    mut images: ResMut<Assets<Image>>,
 ) {
-    let level = Level::from_png(
-        &std::fs::File::open("./assets/level.png").unwrap());
-
-    spawn_enemy(&mut commands,&mut meshes,&mut materials, Vec3{x:1.0, y:0.75, z:1.5});
-    for y in 0 .. level.height {
-        for x in 0 .. level.width {
-            if level.has_wall(x, y).unwrap() {
-                commands.spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(x as f32, 1.0, y as f32),
-                    ..default()
-                })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
-            }
-            if level.has_floor(x, y).unwrap() {
-                commands.spawn_bundle(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                    material: materials.add(Color::rgb(0.0, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(x as f32, 0.0, y as f32),
-                    ..default()
-                })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
-            }
-        }
-    }
-
     commands.spawn((
         Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
         ActiveEvents::COLLISION_EVENTS,
@@ -113,12 +85,51 @@ fn setup(
         },
         Inventory::new(),
     ));
+
     commands.spawn((
         Camera3dBundle::default(),
         RenderPlayer(0),
     ));
+}
 
-    commands.spawn_bundle((
+fn spawn_level(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut outlines: ResMut<Assets<OutlineMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
+) {
+    let level = Level::from_image(
+        images.get(&asset_server.load("level.png")).unwrap());
+
+    for y in 0 .. level.height {
+        for x in 0 .. level.width {
+            if level.has_wall(x, y).unwrap() {
+                commands.spawn(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                    transform: Transform::from_xyz(x as f32, 1.0, y as f32),
+                    ..default()
+                })
+                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
+            }
+            if level.has_floor(x, y).unwrap() {
+                commands.spawn(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+                    material: materials.add(Color::rgb(0.0, 0.7, 0.6).into()),
+                    transform: Transform::from_xyz(x as f32, 0.0, y as f32),
+                    ..default()
+                })
+                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
+            }
+        }
+    }
+
+    spawn_enemy(&mut commands, &mut meshes, &mut materials,
+                Vec3 { x: 1.0, y: 0.75, z: 1.5 });
+
+    commands.spawn((
         Interactable,
         Item { item_type: ItemType::Potion },
         PbrBundle {

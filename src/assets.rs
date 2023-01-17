@@ -19,6 +19,8 @@ pub enum GameState { Loading, Ready }
 
 #[derive(AssetCollection, Resource)]
 pub struct ImageAssets {
+    #[asset(path = "level.png")]
+    pub level: Handle<Image>,
     #[asset(path = "empty.png")]
     pub empty: Handle<Image>,
     #[asset(path = "crosshair.png")]
