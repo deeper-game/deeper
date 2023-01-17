@@ -35,7 +35,7 @@ fn create_screen(
         Extent3d { width: 1360, height: 768, depth_or_array_layers: 1 },
         TextureDimension::D2,
         &[255u8, 0u8, 255u8, 255u8],
-        TextureFormat::Bgra8UnormSrgb);
+        TextureFormat::Rgba8UnormSrgb);
 
     let potato: Handle<Image> = asset_server.load("crt-potato-thin.png");
 
@@ -100,9 +100,9 @@ fn run_editor(
                 for x in 0 .. rasterized.width {
                     let [a, r, g, b] =
                         rasterized.get((rasterized.width - 1) - x, y).to_le_bytes();
-                    image.data[index + 0] = b;
+                    image.data[index + 0] = r;
                     image.data[index + 1] = g;
-                    image.data[index + 2] = r;
+                    image.data[index + 2] = b;
                     image.data[index + 3] = a;
                     index += 4;
                 }
