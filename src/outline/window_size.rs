@@ -23,6 +23,7 @@ pub(crate) struct ExtractedWindowSize {
 #[derive(ShaderType, Resource)]
 pub(crate) struct DoubleReciprocalWindowSizeUniform {
     size: Vec2,
+    padding: Vec2,
 }
 
 #[derive(Resource)]
@@ -52,6 +53,7 @@ pub(crate) fn prepare_window_size(
     if window_size.is_changed() {
         let window_size_uniform = DoubleReciprocalWindowSizeUniform {
             size: Vec2::new(2.0 / window_size.width, 2.0 / window_size.height),
+            padding: Vec2::new(0.0, 0.0),
         };
         render_queue.write_buffer(
             &window_size_meta.buffer,

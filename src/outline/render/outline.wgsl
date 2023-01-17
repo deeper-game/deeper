@@ -17,6 +17,7 @@ var<uniform> mesh: Mesh;
 struct OutlineMat {
     width: f32,
     color: vec4<f32>,
+    padding: vec3<f32>,
 };
 
 @group(2)
@@ -25,6 +26,7 @@ var<uniform> outline_mat: OutlineMat;
 
 struct DoubleReciprocalWindowSize {
     size: vec2<f32>,
+    padding: vec2<f32>,
 };
 
 @group(3)
