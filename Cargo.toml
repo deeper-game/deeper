@@ -3,10 +3,8 @@ name = "deeper"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-bevy = { version = "0.9.1", features = ["dynamic"] }
+bevy = "*"
 bevy_asset_loader = "*"
 bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy_fps_controller = "0.1.4-dev"
@@ -17,6 +15,9 @@ wgpu = "*"
 wgpu-types = "*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+bevy = { version = "0.9.1", features = ["dynamic"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

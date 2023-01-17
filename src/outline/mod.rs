@@ -117,6 +117,7 @@ pub struct OutlineMaterial {
 struct OutlineMaterialUniform {
     width: f32,
     color: Vec4,
+    padding: Vec3,
 }
 
 pub struct GpuOutlineMaterial {
@@ -139,6 +140,7 @@ impl RenderAsset for OutlineMaterial {
         let uniform = OutlineMaterialUniform {
             width: extracted_asset.width,
             color: extracted_asset.color.as_linear_rgba_f32().into(),
+            padding: Vec3::new(0.0, 0.0, 0.0),
         };
 
         let byte_buffer = [0u8; OutlineMaterialUniform::SHADER_SIZE.get() as usize];
