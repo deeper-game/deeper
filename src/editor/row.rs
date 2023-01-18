@@ -158,6 +158,10 @@ impl Row {
         self.string.as_bytes()
     }
 
+    pub fn as_string(&self) -> &String {
+        &self.string
+    }
+
     pub fn find(&self, query: &str, at: usize, direction: SearchDirection) -> Option<usize> {
         if at > self.len || query.is_empty() {
             return None;

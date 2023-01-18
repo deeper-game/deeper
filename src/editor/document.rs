@@ -26,6 +26,8 @@ use crate::editor::Position;
 use crate::editor::Row;
 use crate::editor::SearchDirection;
 
+//use itertools::{intersperse};
+
 #[derive(Clone, Default)]
 pub struct Document {
     rows: Vec<Row>,
@@ -159,5 +161,10 @@ impl Document {
                 start_with_comment,
             );
         }
+    }
+
+    //itertools::assert_equal(intersperse((0..3), 8), vec![0, 8, 1, 8, 2]);
+    pub fn get_text(&self) -> String {
+        self.rows.iter().map(|r| r.as_string().clone()).intersperse("\n".to_string()).collect::<String>()
     }
 }

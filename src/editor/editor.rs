@@ -26,6 +26,7 @@ use crate::editor::Row;
 use crate::editor::Terminal;
 use crate::editor::Rasterized;
 use crate::terminal_key::Key;
+use crate::magic::token::{Token};
 use std::time::Duration;
 use std::time::Instant;
 use std::collections::HashMap;
@@ -33,6 +34,7 @@ use bevy::input::Input;
 use bevy::input::keyboard::KeyCode;
 use bevy::time::Time;
 use bevy::render::color::Color;
+use logos::{Logos};
 
 const STATUS_FG_COLOR: Color = Color::rgb(0.25, 0.25, 0.25);
 const STATUS_BG_COLOR: Color = Color::rgb(0.94, 0.94, 0.94);
@@ -173,6 +175,12 @@ impl Editor {
                 self.status_message =
                     StatusMessage::from("Save as: ");
             },
+            Key::Ctrl('d') => {
+                let code = self.document.get_text();
+                let mut lex = Token::lexer(&code);
+                let tokens = lex.collect::<Vec<Token>>();
+                println!("{:?}", &tokens);
+            }
             Key::Ctrl('f') => {
                 self.prompt_mode = Some(PromptMode::Search);
                 self.status_message =
