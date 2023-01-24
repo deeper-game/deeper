@@ -2,7 +2,6 @@ use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
-use bevy_fps_controller::controller::*;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
@@ -14,6 +13,9 @@ use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 use crate::projectile::Projectile;
 use crate::enemy::spawn_enemy;
+use crate::fps_controller::{
+    FpsController, FpsControllerInput, LogicalPlayer, RenderPlayer
+};
 
 pub mod outline;
 pub mod terminal_key;
@@ -28,6 +30,7 @@ pub mod editor;
 pub mod crt;
 pub mod projectile;
 pub mod enemy;
+pub mod fps_controller;
 
 pub fn main() {
     App::new()
@@ -36,7 +39,7 @@ pub fn main() {
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
-        .add_plugin(FpsControllerPlugin)
+        .add_plugin(crate::fps_controller::FpsControllerPlugin)
         .add_plugin(crate::outline::OutlinePlugin)
         .add_plugin(crate::assets::AssetsPlugin)
         .add_plugin(crate::ui::UiPlugin)

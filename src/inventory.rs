@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use bevy::prelude::*;
-use bevy_fps_controller::controller::{LogicalPlayer};
+use crate::fps_controller::{LogicalPlayer};
 use crate::assets::{ImageAssets, GameState};
 use crate::ui::{InventorySlot, InventoryPosition};
 

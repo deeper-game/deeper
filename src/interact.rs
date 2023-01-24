@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{RapierContext, Collider, QueryFilter};
-use bevy_fps_controller::controller::{FpsController, LogicalPlayer, RenderPlayer};
+use crate::fps_controller::{FpsController, LogicalPlayer, RenderPlayer};
 use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 

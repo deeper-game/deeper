@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::{
     RapierContext, Collider, QueryFilter, RayIntersection
 };
-use bevy_fps_controller::controller::LogicalPlayer;
+use crate::fps_controller::LogicalPlayer;
 use crate::projectile::ProjectileImpact;
 
 pub struct EnemyPlugin;

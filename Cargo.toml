@@ -7,7 +7,6 @@ edition = "2021"
 bevy = "*"
 bevy_asset_loader = "*"
 bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
-bevy_fps_controller = "0.1.4-dev"
 bevy_sprite3d = "*"
 bevy-inspector-egui = "*"
 bitvec = "*"
