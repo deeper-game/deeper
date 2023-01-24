@@ -482,16 +482,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_fps_controller"
-version = "0.1.4-dev"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8a2021293c14b7b5991f5836ff43fbf253782428dc1779796c0b3066bc3abf"
-dependencies = [
- "bevy",
- "bevy_rapier3d",
-]
-
-[[package]]
 name = "bevy_gilrs"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1449,7 +1439,6 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_asset_loader",
- "bevy_fps_controller",
  "bevy_rapier3d",
  "bevy_sprite3d",
  "bitvec",
