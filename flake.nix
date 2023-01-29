@@ -40,6 +40,7 @@
     nix-gitignore,
     nix-std,
     self,
+    ...
   }: let
     supportedSystems = [
       "x86_64-linux"
