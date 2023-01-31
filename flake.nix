@@ -51,97 +51,58 @@
     std = nix-std.lib;
   in
     { inherit std; } // flake-utils.lib.eachSystem supportedSystems (system: let
+
+      wasmTarget = "wasm32-unknown-unknown";
+
+      rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
+      rustToolchainWasm = rustToolchain.override {
+        targets = [ wasmTarget ];
+      };
+
+      craneLib = crane.lib.${system}.overrideToolchain rustToolchain;
+      # NB: we don't need to overlay our custom toolchain for the *entire*
+      # pkgs (which would require rebuilding anything else which uses rust).
+      # Instead, we just want to update the scope that crane will use by appending
+      # our specific toolchain there.
+      craneLibWasm = craneLib.overrideToolchain rustToolchainWasm;
+
       pkgs = import nixpkgs {
         inherit system;
         overlays = [
           (import rust-overlay)
           devshell.overlay
+          (self: super: {
+            wasm-server-runner = self.callPackage ./nix/wasm-server-runner {};
+          })
         ];
       };
-      src = nix-gitignore.lib.gitignoreSource ./.;
 
+      code = pkgs.callPackage ./deeper.nix {
+        inherit nixpkgs system craneLib craneLibWasm rustToolchain rustToolchainWasm wasmTarget nix-gitignore std;
+      };
+
+      # some helpful utilities
       isLinux = std.string.hasInfix "linux";
       isDarwin = std.string.hasInfix "darwin";
       isArm64 = std.string.hasInfix "aarch64";
-
-      # Faster linkers
-      linker =
-        if isDarwin system
-        then pkgs.zld
-        else if isArm64 system
-             then pkgs.lld
-             else pkgs.mold;
-
-      rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
-      craneLib = crane.lib.${system}.overrideToolchain rustToolchain;
-
-      commonArgs = {
-        inherit src;
-
-        buildInputs = [
-          pkgs.libclang.lib
-          pkgs.libiconv
-          pkgs.shaderc
-          pkgs.shaderc.lib
-          pkgs.SDL2
-          pkgs.vulkan-loader
-          pkgs.makeWrapper
-        ] ++ std.list.optionals (isLinux system) [
-          pkgs.alsaLib
-          pkgs.xorg.libX11
-          pkgs.xorg.libXcursor
-          pkgs.xorg.libXrandr
-          pkgs.xorg.libXi
-          pkgs.libxkbcommon
-          pkgs.mesa
-          pkgs.udev
-          pkgs.vulkan-validation-layers
-        ] ++ std.list.optionals (isDarwin system) [
-          pkgs.darwin.apple_sdk.frameworks.AppKit
-        ];
-
-        nativeBuildInputs = [
-          pkgs.pkgconfig
-          pkgs.gdb
-          linker
-        ] ++ std.list.optionals (isLinux system) [
-          pkgs.valgrind
-          pkgs.renderdoc
-        ];
-      };
-
-      cargoArtifacts = craneLib.buildDepsOnly (commonArgs
-        // {
-          pname = "deps";
-        });
-      deeper = craneLib.buildPackage (commonArgs
-        // rec {
-          inherit cargoArtifacts;
-
-          postInstall = ''
-            # Make sure assets are findable
-            cp -r assets/ $out/bin/
-
-            # Needed for graphics
-            wrapProgram $out/bin/deeper \
-              --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [ pkgs.vulkan-loader ]}"
-          '';
-        }
-        // (if isLinux system && !(isArm64 system) then {
-          CARGO_LINKER = "clang";
-          CARGO_RUSTFLAGS = "-C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
-        } else {}));
     in {
       inherit pkgs;
-      inherit rustToolchain;
 
-      inherit deeper;
-      packages.default = deeper;
+      packages = {
+        app = code.deeper;
+        wasm = code.wasm;
+        wasmRunner = code.wasmRunner;
+        all = pkgs.symlinkJoin {
+          name = "all";
+          paths = [ code.app code.wasm code.wasmRunner ];
+        };
+        default = self.packages.${system}.all;
+      };
 
       apps.default = flake-utils.lib.mkApp {drv = self.packages.${system}.default;};
 
       checks = {
-        inherit deeper;
+        inherit (code) deeper;
       };
 
       devShells.default = pkgs.devshell.mkShell {
@@ -155,7 +116,7 @@
             name = "LD_LIBRARY_PATH";
             value =
               if isLinux system
-              then "LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath commonArgs.buildInputs}"
+              then "LD_LIBRARY_PATH:${self.packages.${system}.default.buildInputs}"
               else "$LD_LIBRARY_PATH";
           }
 
@@ -193,6 +154,7 @@
           }
         ];
 
+        # Should add some commands for easier wasm generation
         commands = [];
 
         devshell = {
@@ -203,7 +165,7 @@
             pkgs.rnix-lsp
 
             # Tools
-            rustToolchain
+            code.rustToolchain
             pkgs.alejandra
             pkgs.shellcheck
             pkgs.jq
