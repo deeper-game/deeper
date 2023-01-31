@@ -11,7 +11,7 @@ bevy_sprite3d = "*"
 bevy-inspector-egui = "*"
 bitvec = "*"
 wgpu = "*"
-wgpu-types = "*"
+wgpu-types = "0.14.*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
 fraction = "*"

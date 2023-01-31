@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
-use bevy_inspector_egui::{InspectorPlugin, widgets::InspectorQuery};
+use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
