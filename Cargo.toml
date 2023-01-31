@@ -14,6 +14,8 @@ wgpu = "*"
 wgpu-types = "*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
+fraction = "*"
+rand = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bevy = { version = "0.9.1", features = ["dynamic"] }
