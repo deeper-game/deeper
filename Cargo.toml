@@ -18,7 +18,8 @@ fraction = "*"
 rand = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-bevy = { version = "0.9.1", features = ["dynamic"] }
+# See https://bevyengine.org/learn/book/getting-started/setup/
+bevy = { version = "0.9.1" } #, features = ["dynamic"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
