@@ -112,6 +112,6 @@ rec {
 
       wasm-server-runner ${wasm}/bin/deeper.wasm
     '';
-    runtimeInputs = [rustToolchain pkgs.wasm-server-runner];
+    runtimeInputs = [pkgs.wasm-server-runner];
   };
 }
