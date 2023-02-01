@@ -70,6 +70,7 @@ in
 rec {
   inherit rustToolchain;
   inherit rustToolchainWasm;
+  inherit commonArgs;
 
   app = craneLib.buildPackage (withCommonArgs ({
     inherit cargoArtifacts;

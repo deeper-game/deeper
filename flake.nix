@@ -113,10 +113,18 @@
           }
 
           {
+            name = "PKG_CONFIG_PATH";
+            value = std.string.concatSep ":" [
+              "${pkgs.alsaLib.dev}/lib/pkgconfig"
+              "${pkgs.udev.dev}/lib/pkgconfig"
+            ];
+          }
+
+          {
             name = "LD_LIBRARY_PATH";
             value =
               if isLinux system
-              then "LD_LIBRARY_PATH:${self.packages.${system}.default.buildInputs}"
+              then "LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath self.packages.${system}.default.buildInputs}"
               else "$LD_LIBRARY_PATH";
           }
 
@@ -159,7 +167,10 @@
 
         devshell = {
           name = "deeper";
-          packages = [
+          packages = code.commonArgs.buildInputs ++ [
+            pkgs.pkg-config
+            pkgs.clang
+
             # LSP's
             pkgs.rust-analyzer
             pkgs.rnix-lsp
