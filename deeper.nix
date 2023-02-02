@@ -46,6 +46,8 @@ let
       pkgs.libxkbcommon
       pkgs.mesa
       pkgs.udev
+      #pkgs.vulkan-headers
+      #pkgs.vulkan-tools
       pkgs.vulkan-validation-layers
     ] ++ std.list.optionals (isDarwin system) [
       pkgs.darwin.apple_sdk.frameworks.AppKit
@@ -71,6 +73,7 @@ rec {
   inherit rustToolchain;
   inherit rustToolchainWasm;
   inherit commonArgs;
+  inherit linker;
 
   app = craneLib.buildPackage (withCommonArgs ({
     inherit cargoArtifacts;
@@ -96,6 +99,10 @@ rec {
     # Override crane's use of --workspace, which tries to build everything
     cargoCheckCommand = "cargo check --release";
     cargoBuildCommand = "cargo build --release";
+
+    # https://github.com/gfx-rs/wgpu/discussions/1776
+    # https://github.com/gfx-rs/wgpu/wiki/Running-on-the-Web-with-WebGPU-and-WebGL
+    RUSTFLAGS = "--cfg=web_sys_unstable_apis";
 
     # Tests currently need to be run via `cargo wasi` which
     # isn't packaged in nixpkgs yet

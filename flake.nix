@@ -85,16 +85,19 @@
       isLinux = std.string.hasInfix "linux";
       isDarwin = std.string.hasInfix "darwin";
       isArm64 = std.string.hasInfix "aarch64";
+
+      makePkgconfigPath = pkgs.lib.makeSearchPathOutput "dev" "lib/pkgconfig";
+
+      makeLinkerPath = linker: "${linker}/bin/${linker.pname}";
     in {
       inherit pkgs;
 
       packages = {
-        app = code.deeper;
+        app = code.app;
         wasm = code.wasm;
-        wasmRunner = code.wasmRunner;
         all = pkgs.symlinkJoin {
           name = "all";
-          paths = [ code.app code.wasm code.wasmRunner ];
+          paths = [ code.app code.wasm ];
         };
         default = self.packages.${system}.all;
       };
@@ -108,24 +111,31 @@
       devShells.default = pkgs.devshell.mkShell {
         env = [
           {
+            name = "CARGO_LINKER";
+            value = "clang";
+          }
+
+          {
+            name = "CARGO_RUSTFLAGS";
+            value = std.string.concatSep " " [
+              "-C link-arg=-fuse-ld=${makeLinkerPath code.linker}"
+              "-Zshare-generics=y"
+            ];
+          }
+
+          {
             name = "SHADERC_LIBRARY_PATH";
             value = "${pkgs.shaderc.lib}/lib";
           }
 
           {
             name = "PKG_CONFIG_PATH";
-            value = std.string.concatSep ":" [
-              "${pkgs.alsaLib.dev}/lib/pkgconfig"
-              "${pkgs.udev.dev}/lib/pkgconfig"
-            ];
+            value = "$PKG_CONFIG_PATH:${makePkgconfigPath code.commonArgs.buildInputs}";
           }
 
           {
             name = "LD_LIBRARY_PATH";
-            value =
-              if isLinux system
-              then "LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath self.packages.${system}.default.buildInputs}"
-              else "$LD_LIBRARY_PATH";
+            value = "$LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath code.commonArgs.buildInputs}";
           }
 
           {
@@ -162,12 +172,12 @@
           }
         ];
 
-        # Should add some commands for easier wasm generation
+        # Should add some commands for easier wasm generation/running
         commands = [];
 
         devshell = {
           name = "deeper";
-          packages = code.commonArgs.buildInputs ++ [
+          packages = self.packages.${system}.app.buildInputs ++ [
             pkgs.pkg-config
             pkgs.clang
 
