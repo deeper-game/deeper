@@ -1,3 +1,9 @@
+#![allow(dead_code)]
+#![allow(deprecated)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+
 use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
 use bevy::prelude::*;
@@ -31,6 +37,7 @@ pub mod crt;
 pub mod projectile;
 pub mod enemy;
 pub mod fps_controller;
+pub mod room_loader;
 
 pub fn main() {
     App::new()
@@ -39,6 +46,7 @@ pub fn main() {
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
         .add_plugin(crate::outline::OutlinePlugin)
         .add_plugin(crate::assets::AssetsPlugin)
@@ -65,6 +73,7 @@ fn setup(
 ) {
     commands.spawn((
         Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
+        ColliderDisabled,
         ActiveEvents::COLLISION_EVENTS,
         Velocity::zero(),
         RigidBody::Dynamic,
@@ -90,7 +99,10 @@ fn setup(
     ));
 
     commands.spawn((
-        Camera3dBundle::default(),
+        Camera3dBundle {
+            transform: Transform::from_xyz(10.0, 10.0, 10.0),
+            ..default()
+        },
         RenderPlayer(0),
     ));
 }
@@ -101,31 +113,26 @@ fn spawn_level(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    asset_server: Res<AssetServer>,
+    mut rooms: ResMut<Assets<crate::room_loader::TextFile>>,
+    image_assets: Res<crate::assets::ImageAssets>,
+    room_assets: Res<crate::assets::RoomAssets>,
 ) {
-    let level = Level::from_image(
-        images.get(&asset_server.load("level.png")).unwrap());
+    let room1 = crate::level::Room::parse(&rooms.get(&room_assets.room1).unwrap().contents);
+    let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
+    let map = crate::level::room_gluing(&room1.clone(), 0, &[room1, room2]);
 
-    for y in 0 .. level.height {
-        for x in 0 .. level.width {
-            if level.has_wall(x, y).unwrap() {
-                commands.spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                    material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(x as f32, 1.0, y as f32),
-                    ..default()
-                })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
-            }
-            if level.has_floor(x, y).unwrap() {
-                commands.spawn(PbrBundle {
-                    mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                    material: materials.add(Color::rgb(0.0, 0.7, 0.6).into()),
-                    transform: Transform::from_xyz(x as f32, 0.0, y as f32),
-                    ..default()
-                })
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5));
-            }
+    for pos in map.voxels.bounding_box.iter() {
+        if map.voxels.index(&pos).shape == crate::level::VoxelShape::Solid {
+            commands.spawn(PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                // Annoying hack because camera position is weird
+                transform: Transform::from_xyz(pos.x as f32 - 3.0,
+                                               pos.y as f32 - 0.2,
+                                               pos.z as f32 - 3.0),
+                ..default()
+            })
+                .insert(Collider::cuboid(0.5, 0.5, 0.5));
         }
     }
 
@@ -138,7 +145,7 @@ fn spawn_level(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
             material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
-            transform: Transform::from_xyz(1.5, 0.55, 1.5),
+            transform: Transform::from_xyz(1.5, 0.0, 1.5),
             ..default()
         }))
         .insert(Collider::cuboid(0.025, 0.025, 0.025))

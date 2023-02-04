@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
+use crate::room_loader::TextFile;
 
 pub struct AssetsPlugin;
 
@@ -9,7 +10,8 @@ impl Plugin for AssetsPlugin {
             .add_loading_state(
                 LoadingState::new(GameState::Loading)
                     .continue_to_state(GameState::Ready)
-                    .with_collection::<ImageAssets>())
+                    .with_collection::<ImageAssets>()
+                    .with_collection::<RoomAssets>())
             .add_state(GameState::Loading);
     }
 }
@@ -27,4 +29,12 @@ pub struct ImageAssets {
     pub crosshair: Handle<Image>,
     #[asset(path = "coin.png")]
     pub coin: Handle<Image>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct RoomAssets {
+    #[asset(path = "rooms/room1.txt")]
+    pub room1: Handle<TextFile>,
+    #[asset(path = "rooms/room2.txt")]
+    pub room2: Handle<TextFile>,
 }

@@ -1481,6 +1481,7 @@ dependencies = [
 name = "deeper"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bevy",
  "bevy-inspector-egui",
  "bevy_asset_loader",
@@ -1489,7 +1490,9 @@ dependencies = [
  "bitvec",
  "fraction",
  "noto-sans-mono-bitmap",
+ "petgraph",
  "rand",
+ "thiserror",
  "unicode-segmentation",
  "wgpu 0.15.0",
  "wgpu-types 0.14.1",

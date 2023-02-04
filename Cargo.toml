@@ -15,7 +15,10 @@ wgpu-types = "0.14.*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
 fraction = "*"
+petgraph = "*"
 rand = "*"
+anyhow = "*"
+thiserror = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 # See https://bevyengine.org/learn/book/getting-started/setup/
