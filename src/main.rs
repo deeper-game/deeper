@@ -38,6 +38,7 @@ pub mod projectile;
 pub mod enemy;
 pub mod fps_controller;
 pub mod room_loader;
+pub mod circles;
 
 pub fn main() {
     App::new()
@@ -57,6 +58,7 @@ pub fn main() {
         .add_plugin(crate::crt::CrtPlugin)
         .add_plugin(crate::projectile::ProjectilePlugin)
         .add_plugin(crate::enemy::EnemyPlugin)
+        .add_plugin(crate::circles::CirclePlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)

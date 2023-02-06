@@ -1490,6 +1490,7 @@ dependencies = [
  "bitvec",
  "fraction",
  "noto-sans-mono-bitmap",
+ "num-traits",
  "petgraph",
  "rand",
  "thiserror",
