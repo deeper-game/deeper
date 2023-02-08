@@ -39,6 +39,7 @@ pub mod enemy;
 pub mod fps_controller;
 pub mod room_loader;
 pub mod circles;
+pub mod spline;
 
 pub fn main() {
     App::new()
