@@ -20,7 +20,12 @@ struct FragmentInput {
 
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
-    let pos = in.uv - vec2(0.5, 0.5);
+    var uv = in.uv;
+    if (uv.x > 0.5) {
+        uv.x -= 0.5;
+    }
+    uv.x *= 2.0;
+    var pos = uv - vec2(0.5, 0.5);
 
     let pixelated_pos = floor(pos * material.resolution) / material.resolution;
     let flesh_time_scale = 4.0;
