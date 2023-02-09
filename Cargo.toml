@@ -10,7 +10,7 @@ bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determ
 bevy_sprite3d = "*"
 bevy-inspector-egui = "*"
 bitvec = "*"
-wgpu = "*"
+wgpu = "0.14.*"
 wgpu-types = "0.14.*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
