@@ -4,14 +4,14 @@ use bevy::reflect::TypeUuid;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy_rapier3d::prelude::{RapierContext, QueryFilter};
 use num_traits::float::FloatConst;
-use std::time::Duration;
+use bevy::utils::{Instant, Duration};
 
 #[derive(Component)]
 pub struct Laser;
 
 #[derive(Component)]
 pub struct FleshCircle {
-    start_time: std::time::Instant,
+    start_time: Instant,
     lasers: Vec<Entity>,
 }
 
