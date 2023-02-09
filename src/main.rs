@@ -40,6 +40,7 @@ pub mod fps_controller;
 pub mod room_loader;
 pub mod circles;
 pub mod spline;
+pub mod shapes;
 
 pub fn main() {
     App::new()
