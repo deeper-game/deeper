@@ -15,9 +15,9 @@ struct VertexOutput {
 var<uniform> mesh: Mesh;
 
 struct OutlineMat {
+    @align(16)
     width: f32,
     color: vec4<f32>,
-    padding: vec3<f32>,
 };
 
 @group(2)
@@ -25,8 +25,8 @@ struct OutlineMat {
 var<uniform> outline_mat: OutlineMat;
 
 struct DoubleReciprocalWindowSize {
+    @align(16)
     size: vec2<f32>,
-    padding: vec2<f32>,
 };
 
 @group(3)

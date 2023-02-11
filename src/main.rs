@@ -77,7 +77,6 @@ fn setup(
 ) {
     commands.spawn((
         Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
-        ColliderDisabled,
         ActiveEvents::COLLISION_EVENTS,
         Velocity::zero(),
         RigidBody::Dynamic,
@@ -149,7 +148,7 @@ fn spawn_level(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),
             material: materials.add(Color::rgb(1.0, 0.2, 0.2).into()),
-            transform: Transform::from_xyz(1.5, 0.0, 1.5),
+            transform: Transform::from_xyz(1.5, 0.75, 1.5),
             ..default()
         }))
         .insert(Collider::cuboid(0.025, 0.025, 0.025))

@@ -4,6 +4,7 @@
 // Based on https://twitter.com/zozuar/status/1621229990267310081
 
 struct FleshCircleMaterial {
+    @align(16)
     resolution: f32,
     radius: f32,
     border: f32,
@@ -20,6 +21,12 @@ struct FragmentInput {
 
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
+    let resolution = material.resolution;
+    let radius = material.radius;
+    let border = material.border;
+    let flesh_time = material.flesh_time;
+    let alpha = material.alpha;
+
     var uv = in.uv;
     if (uv.x > 0.5) {
         uv.x -= 0.5;
@@ -27,13 +34,13 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     uv.x *= 2.0;
     var pos = uv - vec2(0.5, 0.5);
 
-    let pixelated_pos = floor(pos * material.resolution) / material.resolution;
+    let pixelated_pos = floor(pos * resolution) / resolution;
     let flesh_time_scale = 4.0;
     let flesh_scale = 0.5;
 
     var flesh: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     {
-        let t: f32 = material.flesh_time * flesh_time_scale;
+        let t: f32 = flesh_time * flesh_time_scale;
         var p: vec2<f32> = pixelated_pos / flesh_scale;
         var n: vec2<f32> = vec2(0.0, 0.0);
         var d: f32 = dot(p, p);
@@ -65,14 +72,14 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
             + (2.0 * a)
             + (-1.0 * d);
     }
-    let transparent_flesh = vec4<f32>(flesh.x, flesh.y, flesh.z, material.alpha);
+    let transparent_flesh = vec4<f32>(flesh.x, flesh.y, flesh.z, alpha);
 
     var masked = transparent_flesh;
     let r_squared = dot(pos, pos);
-    if (r_squared > (material.radius * material.radius)) {
+    if (r_squared > (radius * radius)) {
         masked = vec4<f32>(1.0, 1.0, 1.0, 1.0);
     }
-    let r_plus_b = material.radius + material.border;
+    let r_plus_b = radius + border;
     if (r_squared > (r_plus_b * r_plus_b)) {
         masked = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }

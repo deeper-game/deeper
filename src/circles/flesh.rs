@@ -1,7 +1,9 @@
 use crate::spline::PiecewiseLinearSpline;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::render::render_resource::{
+    AsBindGroup, ShaderRef, ShaderType
+};
 use bevy_rapier3d::prelude::{RapierContext, QueryFilter};
 use num_traits::float::FloatConst;
 use bevy::utils::{Instant, Duration};
@@ -110,9 +112,9 @@ pub fn update_flesh_circles(
         (1.0, 0.0),
     ]);
     for (circle_entity, circle_gt, material, flesh_circle) in flesh_circles.iter() {
-        let t = (time.last_update().unwrap() - flesh_circle.start_time)
-            .as_secs_f32() * time_scale;
-        if t >= 0.0 {
+        if time.last_update().unwrap() >= flesh_circle.start_time {
+            let t = (time.last_update().unwrap() - flesh_circle.start_time)
+                .as_secs_f32() * time_scale;
             if t > duration {
                 for laser in &flesh_circle.lasers {
                     commands.entity(laser.clone()).despawn();
@@ -170,17 +172,35 @@ pub fn update_flesh_circles(
 // This is the struct that will be passed to your shader
 #[derive(AsBindGroup, TypeUuid, Debug, Clone)]
 #[uuid = "9ce1803d-8107-48c0-8125-dbd4e838d03a"]
+#[uniform(0, FleshCircleMaterialUniform)]
 pub struct FleshCircleMaterial {
-    #[uniform(0)]
     resolution: f32,
-    #[uniform(0)]
     radius: f32,
-    #[uniform(0)]
     border: f32,
-    #[uniform(0)]
     flesh_time: f32,
-    #[uniform(0)]
     alpha: f32,
+}
+
+#[derive(ShaderType)]
+struct FleshCircleMaterialUniform {
+    #[align(16)]
+    resolution: f32,
+    radius: f32,
+    border: f32,
+    flesh_time: f32,
+    alpha: f32,
+}
+
+impl From<&FleshCircleMaterial> for FleshCircleMaterialUniform {
+    fn from(material: &FleshCircleMaterial) -> FleshCircleMaterialUniform {
+        FleshCircleMaterialUniform {
+            resolution: material.resolution,
+            radius: material.radius,
+            border: material.border,
+            flesh_time: material.flesh_time,
+            alpha: material.alpha,
+        }
+    }
 }
 
 impl Material for FleshCircleMaterial {
