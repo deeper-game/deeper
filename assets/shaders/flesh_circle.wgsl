@@ -50,22 +50,14 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         var j: f32 = 0.0;
         let theta = 5.0;
         let m = mat2x2<f32>(cos(theta), sin(theta), -sin(theta), cos(theta));
-        loop {
-            if (j >= 30.0) {
-                break;
-            }
-            {
-                p *= m;
-                n *= m;
-                let q: vec2<f32> =
-                    p * S + t + sin(t - d * 6.0) * 0.8 + j + n;
-                a += dot(cos(q) / S, vec2<f32>(0.2, 0.2));
-                n -= sin(q);
-                S *= 1.2;
-            }
-            continuing {
-                j = j + 1.0;
-            }
+        for(var j: i32 = 0; j < 30; j = j + 1) {
+            p *= m;
+            n *= m;
+            let q: vec2<f32> =
+                p * S + t + sin(t - d * 6.0) * 0.8 + f32(j) + n;
+            a += dot(cos(q) / S, vec2<f32>(0.2, 0.2));
+            n -= sin(q);
+            S *= 1.2;
         }
         flesh = vec4<f32>(0.0, 0.0, 0.0, 1.0)
             + (a + 0.2) * vec4<f32>(4.0, 2.0, 1.0, 0.0)
