@@ -1440,6 +1440,7 @@ dependencies = [
 name = "deeper"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "anyhow",
  "bevy",
  "bevy-inspector-egui",

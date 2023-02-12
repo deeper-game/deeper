@@ -11,7 +11,8 @@ impl Plugin for AssetsPlugin {
                 LoadingState::new(GameState::Loading)
                     .continue_to_state(GameState::Ready)
                     .with_collection::<ImageAssets>()
-                    .with_collection::<RoomAssets>())
+                    .with_collection::<RoomAssets>()
+                    .with_collection::<FontAssets>())
             .add_state(GameState::Loading);
     }
 }
@@ -37,4 +38,10 @@ pub struct RoomAssets {
     pub room1: Handle<TextFile>,
     #[asset(path = "rooms/room2.txt")]
     pub room2: Handle<TextFile>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct FontAssets {
+    #[asset(path = "DejaVuSans.ttf")]
+    pub dejavu_sans: Handle<Font>,
 }

@@ -20,6 +20,7 @@ rand = "*"
 anyhow = "*"
 thiserror = "*"
 num-traits = "*"
+ab_glyph = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 # See https://bevyengine.org/learn/book/getting-started/setup/
