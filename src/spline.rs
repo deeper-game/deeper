@@ -36,3 +36,44 @@ impl<S: Clone + Copy + Add<S, Output=S> + Sub<S, Output=S> + Mul<f32, Output=S>>
         panic!("interpolate received value outside of range");
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Frame {
+    pub forward: Vec3, // t
+    pub up: Vec3, // r
+    pub right: Vec3, // s
+}
+
+// Compute a series of frames minimizing rotation subject to the given
+// constraints:
+//
+// - The first frame will be equal to the given `initial_frame`
+// - The tangent vectors at each point will be equal to the given `tangents`.
+// - The frames are continuous with respect to the path given by the given
+//   sampled `points`.
+pub fn rotation_minimizing_frames(
+    initial_frame: &Frame,
+    points: &[Vec3],
+    tangents: &[Vec3],
+) -> Vec<Frame> {
+    assert!(tangents[0] == initial_frame.forward);
+    assert!(points.len() >= 1);
+    let mut result = Vec::new();
+    result.push(initial_frame.clone());
+    for i in 0 .. points.len() - 1 {
+        let v_1 = points[i + 1] - points[i];
+        let c_1 = v_1.dot(v_1);
+        let t_i = result[i].forward;
+        let r_i = result[i].up;
+        let s_i = result[i].right;
+        let r_l_i = r_i - (2.0 * v_1.dot(r_i) / c_1) * v_1;
+        let t_l_i = tangents[i] - (2.0 * v_1.dot(tangents[i]) / c_1) * v_1;
+        let v_2 = tangents[i + 1] - t_l_i;
+        let c_2 = v_2.dot(v_2);
+        let forward = tangents[i + 1];
+        let up = r_l_i - ((2.0 * v_2.dot(r_l_i) / c_2) * v_2);
+        let right = forward.cross(up);
+        result.push(Frame { forward, up, right });
+    }
+    result
+}
