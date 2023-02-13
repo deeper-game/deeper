@@ -213,10 +213,12 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     uv.x *= 2.0;
     uv.x = 1.0 - uv.x;
     var pos = uv - vec2(0.5, 0.5);
+    pos *= 0.75; // overall scale factor to make it fit
 
     var result = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     let t = clamp(time / 2.5, 0.0, 1.0);
 
+    let vertices = 6;
     let inner_circle_radius = 0.1;
     let inner_circle_weight = 0.01;
     let outer_circle_radius = 0.2;
@@ -226,10 +228,12 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let bubble_inner_weight = 0.002;
     let bubble_outer_radius = 0.06;
     let bubble_outer_weight = 0.002;
+    let bubble_color = vec4<f32>(0.8, 0.8, 0.9, 1.0);
     let glyph_size = 0.375;
-    let hexagram_spacing = 0.01;
-    let hexagram_weight = 0.001;
-
+    let glyph_color = vec4<f32>(0.16863, 0.62745, 1.0, 1.0);
+    let ngram_spacing = 0.01;
+    let ngram_weight = 0.0015;
+    let ngram_color = vec4<f32>(0.5, 0.5, 0.6, 1.0);
 
     result = triple_circle(
         Circle(
@@ -249,78 +253,76 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         pos,
         result);
 
-    for(var i: i32 = 0; i < 6; i = i + 1) {
-        let theta = f32(i) * tau / 6.0;
+    result.r *= 0.6;
+    result.g *= 0.6;
+    result.b *= 0.7;
+
+    for(var i: i32 = 0; i < vertices; i = i + 1) {
+        let theta = f32(i) * tau / f32(vertices);
         let center = bubble_circle_radius * vec2<f32>(cos(theta), sin(theta));
 
-        if (time > f32(i) / 6.0) {
-            result = single_circle(
+        var bubble_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        if (time > f32(i) / f32(vertices)) {
+            bubble_pixel = single_circle(
                 Circle(
                     center,
                     bubble_inner_radius,
                     t * bubble_inner_weight),
-                time - f32(i) / 6.0,
+                time - f32(i) / f32(vertices),
                 pos,
-                result);
-            result = single_circle(
+                bubble_pixel);
+            bubble_pixel = single_circle(
                 Circle(
                     center,
                     bubble_outer_radius,
                     t * bubble_outer_weight),
-                time - f32(i) / 6.0,
+                time - f32(i) / f32(vertices),
                 pos,
-                result);
+                bubble_pixel);
+            bubble_pixel *= bubble_color;
         }
         var glyph_pixel = paste_glyph(i, glyph_size, center, pos,
                                       vec4<f32>(0.0, 0.0, 0.0, 0.0));
         glyph_pixel = round(glyph_pixel);
-        glyph_pixel = t * 0.75 * glyph_pixel;
-        result += glyph_pixel;
+        glyph_pixel = glyph_pixel * glyph_color;
+        glyph_pixel = clamp(t * 2.0, 0.0, 1.0) * glyph_pixel;
+
+        result = max(result, bubble_pixel);
+        result = max(result, glyph_pixel);
     }
 
     {
-        var hexagram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-        for(var i: i32 = 0; i < 6; i = i + 1) {
-            for(var j: i32 = 0; j < 6; j = j + 1) {
-                if ((j - i) == 3) {
+        var ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        for(var i: i32 = 0; i < vertices; i = i + 1) {
+            for(var j: i32 = 0; j < vertices; j = j + 1) {
+                if (abs(j - i) == (vertices / 2)) {
                     continue;
                 }
-                if ((i - j) == 3) {
-                    continue;
-                }
-                let theta_i = f32(i) * tau / 6.0;
-                let theta_j = f32(j) * tau / 6.0;
+                let theta_i = f32(i) * tau / f32(vertices);
+                let theta_j = f32(j) * tau / f32(vertices);
                 let center_i = bubble_circle_radius * vec2<f32>(cos(theta_i), sin(theta_i));
                 let center_j = bubble_circle_radius * vec2<f32>(cos(theta_j), sin(theta_j));
-                hexagram_pixel =
+                ngram_pixel =
                     middle_out_line_segment(center_i, center_j,
-                                            t * hexagram_weight,
-                                            t, pos, hexagram_pixel);
+                                            t * ngram_weight,
+                                            t, pos, ngram_pixel);
             }
         }
-        for(var i: i32 = 0; i < 6; i = i + 1) {
-            let theta = f32(i) * tau / 6.0;
+        for(var i: i32 = 0; i < vertices; i = i + 1) {
+            let theta = f32(i) * tau / f32(vertices);
             let center = bubble_circle_radius * vec2<f32>(cos(theta), sin(theta));
             if (length(pos - center) < bubble_inner_radius) {
-                hexagram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+                ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
             }
         }
-        if (abs(length(pos) - outer_circle_radius) < hexagram_spacing) {
-            hexagram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        if (abs(length(pos) - outer_circle_radius) < ngram_spacing) {
+            ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
-        if (length(pos) < inner_circle_radius + hexagram_spacing) {
-            hexagram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+        if (length(pos) < inner_circle_radius + ngram_spacing) {
+            ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
-        result = max(result, hexagram_pixel);
+        result = max(result, ngram_pixel * ngram_color);
     }
-
-
-    //if (abs(pos.x) > 0.495) {
-    //    result = vec4<f32>(1.0, 0.0, 0.0, 1.0);
-    //}
-    //if (abs(pos.y) > 0.495) {
-    //    result = vec4<f32>(1.0, 0.0, 0.0, 1.0);
-    //}
 
     return result;
 }
