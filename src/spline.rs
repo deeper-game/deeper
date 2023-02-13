@@ -44,6 +44,39 @@ pub struct Frame {
     pub right: Vec3, // s
 }
 
+impl Add<Frame> for Frame {
+    type Output = Frame;
+    fn add(self, rhs: Frame) -> Frame {
+        return Frame {
+            forward: self.forward + rhs.forward,
+            up: self.up + rhs.up,
+            right: self.right + rhs.right,
+        };
+    }
+}
+
+impl Sub<Frame> for Frame {
+    type Output = Frame;
+    fn sub(self, rhs: Frame) -> Frame {
+        return Frame {
+            forward: self.forward - rhs.forward,
+            up: self.up - rhs.up,
+            right: self.right - rhs.right,
+        };
+    }
+}
+
+impl Mul<f32> for Frame {
+    type Output = Frame;
+    fn mul(self, rhs: f32) -> Frame {
+        return Frame {
+            forward: self.forward * rhs,
+            up: self.up * rhs,
+            right: self.right * rhs,
+        };
+    }
+}
+
 // Compute a series of frames minimizing rotation subject to the given
 // constraints:
 //
