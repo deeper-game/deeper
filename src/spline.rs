@@ -1,9 +1,12 @@
-pub struct PiecewiseLinearSpline {
-    control_points: Vec<(f32, f32)>,
+use bevy::prelude::*;
+use std::ops::{Add, Sub, Mul};
+
+pub struct PiecewiseLinearSpline<S> {
+    control_points: Vec<(f32, S)>,
 }
 
-impl PiecewiseLinearSpline {
-    pub fn new(points: &[(f32, f32)]) -> PiecewiseLinearSpline {
+impl<S: Clone + Copy + Add<S, Output=S> + Sub<S, Output=S> + Mul<f32, Output=S>> PiecewiseLinearSpline<S> {
+    pub fn new(points: &[(f32, S)]) -> PiecewiseLinearSpline<S> {
         assert!(points.len() >= 2);
         assert!(points[0].0 == 0.0);
         assert!(points[points.len() - 1].0 == 1.0);
@@ -19,14 +22,15 @@ impl PiecewiseLinearSpline {
         }
     }
 
-    pub fn interpolate(&self, input: f32) -> f32 {
+    pub fn interpolate(&self, input: f32) -> S {
         for i in 1 .. self.control_points.len() {
             let input = f32::clamp(input, 0.0, 1.0);
             let (lower_x, lower_y) = self.control_points[i - 1];
             let (upper_x, upper_y) = self.control_points[i];
             if (lower_x <= input) && (input <= upper_x) {
-                return (((input - lower_x) / (upper_x - lower_x))
-                        * (upper_y - lower_y)) + lower_y;
+                return
+                    ((upper_y - lower_y) * ((input - lower_x) / (upper_x - lower_x)))
+                    + lower_y;
             }
         }
         panic!("interpolate received value outside of range");
