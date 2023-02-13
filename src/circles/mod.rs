@@ -1,6 +1,7 @@
 use crate::assets::FontAssets;
 use bevy::prelude::*;
 use bevy::text::*;
+use bevy_rapier3d::prelude::RapierContext;
 use num_traits::float::FloatConst;
 
 pub mod flesh;
@@ -50,6 +51,8 @@ pub fn debug_circles(
     mut bubbles_circle_materials: ResMut<Assets<bubbles::BubblesCircleMaterial>>,
     camera: Query<&Transform, With<crate::fps_controller::RenderPlayer>>,
 
+    rapier_context: Res<RapierContext>,
+
     font_assets: Res<FontAssets>,
     fonts: Res<Assets<Font>>,
     font_atlas_sets: Res<Assets<FontAtlasSet>>,
@@ -69,6 +72,7 @@ pub fn debug_circles(
         bubbles::create_bubbles_circle(
             &time, &mut commands, &mut meshes, &mut materials,
             &mut bubbles_circle_materials, &transform,
+            &rapier_context,
             &font_assets, &fonts, &font_atlas_sets, &texture_atlases);
     }
 }
