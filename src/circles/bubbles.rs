@@ -26,11 +26,11 @@ pub struct BubblesCircle {
 
 pub fn create_missile(
     commands: &mut Commands,
-    time: &Res<Time>,
     rapier_context: &Res<RapierContext>,
     transform: &Transform,
     mesh: &Handle<Mesh>,
     material: &Handle<StandardMaterial>,
+    start_time: &Instant,
     seed: f32,
 ) -> bool {
     let collision_result = rapier_context.cast_ray_and_get_normal(
@@ -47,6 +47,7 @@ pub fn create_missile(
 
     let (_, ray_intersection) = collision_result.unwrap();
 
+    // TODO(taktoa): scale this with the distance to the target
     let start_stiffness = 1.0;
     let end_stiffness = 1.0;
 
@@ -91,7 +92,7 @@ pub fn create_missile(
             ..default()
         },
         Missile {
-            start_time: time.last_update().unwrap() + Duration::from_millis(100),
+            start_time: start_time.clone(),
             position_curve: bezier,
             frame_curve: frames,
             seed: seed,
@@ -158,9 +159,10 @@ pub fn create_bubbles_circle(
         xform.translation += transformed_offset;
 
         let seed = (1000 * i) as f32;
-
-        if !create_missile(commands, time, rapier_context, &xform,
-                           &missile_mesh, &missile_material, seed) {
+        let start_time =
+            time.last_update().unwrap() + Duration::from_millis(100);
+        if !create_missile(commands, rapier_context, &xform, &missile_mesh,
+                           &missile_material, &start_time, seed) {
             return;
         }
     }
