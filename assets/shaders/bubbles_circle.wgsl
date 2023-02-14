@@ -253,6 +253,15 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         pos,
         result);
 
+    result = single_circle(
+        Circle(
+            vec2<f32>(0.0, 0.0),
+            bubble_outer_radius + bubble_circle_radius,
+            t * bubble_outer_weight),
+        t * 2.0,
+        pos,
+        result);
+
     result.r *= 0.6;
     result.g *= 0.6;
     result.b *= 0.7;
