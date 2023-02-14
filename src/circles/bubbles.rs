@@ -1,4 +1,5 @@
 use crate::assets::FontAssets;
+use crate::self_destruct::SelfDestructing;
 use crate::spline::{Frame, PiecewiseLinearSpline, CubicBezierCurve};
 use ab_glyph::Font as FontTrait;
 use bevy::prelude::*;
@@ -20,6 +21,13 @@ pub struct Missile {
 }
 
 #[derive(Component)]
+pub struct TrailGenerating {
+    trail_material: Handle<StandardMaterial>,
+    trail_mesh: Handle<Mesh>,
+    fade_duration: Duration,
+}
+
+#[derive(Component)]
 pub struct BubblesCircle {
     start_time: Instant,
 }
@@ -32,7 +40,7 @@ pub fn create_missile(
     material: &Handle<StandardMaterial>,
     start_time: &Instant,
     seed: f32,
-) -> bool {
+) -> Option<Entity> {
     let collision_result = rapier_context.cast_ray_and_get_normal(
         transform.translation,
         transform.forward(),
@@ -42,7 +50,7 @@ pub fn create_missile(
     );
 
     if !collision_result.is_some() {
-        return false;
+        return None;
     }
 
     let (_, ray_intersection) = collision_result.unwrap();
@@ -83,7 +91,7 @@ pub fn create_missile(
                 .collect::<Vec<(f32, Frame)>>())
     };
 
-    commands.spawn((
+    Some(commands.spawn((
         PbrBundle {
             mesh: mesh.clone(),
             material: material.clone(),
@@ -97,9 +105,7 @@ pub fn create_missile(
             frame_curve: frames,
             seed: seed,
         },
-    ));
-
-    true
+    )).id())
 }
 
 pub fn create_bubbles_circle(
@@ -140,6 +146,17 @@ pub fn create_bubbles_circle(
         subdivisions: 1,
     }));
 
+    let trail_material = materials.add(StandardMaterial {
+        base_color: Color::rgb(1.0, 0.0, 1.0),
+        unlit: true,
+        ..default()
+    });
+
+    let trail_mesh = meshes.add(Mesh::from(shape::Icosphere {
+        radius: 0.004,
+        subdivisions: 1,
+    }));
+
     for i in 0 .. number_of_missiles {
         let fraction = (i as f32) / (number_of_missiles as f32);
         let distance = fraction * bubbles_size / 2.0;
@@ -161,8 +178,17 @@ pub fn create_bubbles_circle(
         let seed = (1000 * i) as f32;
         let start_time =
             time.last_update().unwrap() + Duration::from_millis(100);
-        if !create_missile(commands, rapier_context, &xform, &missile_mesh,
-                           &missile_material, &start_time, seed) {
+
+        if let Some(missile_entity) = create_missile(
+            commands, rapier_context, &xform, &missile_mesh,
+            &missile_material, &start_time, seed
+        ) {
+            commands.entity(missile_entity).insert(TrailGenerating {
+                trail_material: trail_material.clone(),
+                trail_mesh: trail_mesh.clone(),
+                fade_duration: Duration::from_millis(100),
+            });
+        } else {
             return;
         }
     }
@@ -261,6 +287,23 @@ pub fn update_bubbles_circles(
             let m = &mut bubbles_circle_materials.get_mut(material).unwrap();
             m.uniform.time = t;
         }
+    }
+}
+
+pub fn update_trails(
+    mut commands: Commands,
+    trail_generators: Query<(&TrailGenerating, &Transform)>,
+) {
+    for (trail_generator, transform) in trail_generators.iter() {
+        commands.spawn((
+            PbrBundle {
+                mesh: trail_generator.trail_mesh.clone(),
+                material: trail_generator.trail_material.clone(),
+                transform: transform.clone(),
+                ..default()
+            },
+            SelfDestructing::new(trail_generator.fade_duration),
+        ));
     }
 }
 
