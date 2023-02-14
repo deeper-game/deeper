@@ -24,6 +24,83 @@ pub struct BubblesCircle {
     start_time: Instant,
 }
 
+pub fn create_missile(
+    commands: &mut Commands,
+    time: &Res<Time>,
+    rapier_context: &Res<RapierContext>,
+    transform: &Transform,
+    mesh: &Handle<Mesh>,
+    material: &Handle<StandardMaterial>,
+    seed: f32,
+) -> bool {
+    let collision_result = rapier_context.cast_ray_and_get_normal(
+        transform.translation,
+        transform.forward(),
+        f32::MAX,
+        true,
+        QueryFilter::new(),
+    );
+
+    if !collision_result.is_some() {
+        return false;
+    }
+
+    let (_, ray_intersection) = collision_result.unwrap();
+
+    let start_stiffness = 1.0;
+    let end_stiffness = 1.0;
+
+    let bezier = CubicBezierCurve {
+        p0: transform.translation,
+        p1: transform.translation + start_stiffness * transform.forward(),
+        p2: ray_intersection.point + end_stiffness * ray_intersection.normal,
+        p3: ray_intersection.point,
+    };
+
+    let frames: PiecewiseLinearSpline<Frame> = {
+        let mut ts = Vec::new();
+        let mut bezier_samples = Vec::new();
+        let mut bezier_tangents = Vec::new();
+        let resolution = 1000;
+        for i in 0 .. resolution + 1 {
+            let t = (i as f32) / (resolution as f32);
+            ts.push(t);
+            bezier_samples.push(bezier.interpolate(t));
+            bezier_tangents.push(bezier.derivative(t).normalize());
+        }
+        let initial_frame = Frame {
+            forward: bezier_tangents[0],
+            up: transform.up(),
+            right: transform.right(),
+        };
+
+        let frames = crate::spline::rotation_minimizing_frames(
+            &initial_frame, &bezier_samples, &bezier_tangents);
+
+        PiecewiseLinearSpline::new(
+            &ts.iter().cloned().zip(frames.into_iter())
+                .collect::<Vec<(f32, Frame)>>())
+    };
+
+    commands.spawn((
+        PbrBundle {
+            mesh: mesh.clone(),
+            material: material.clone(),
+            transform: transform.clone(),
+            visibility: Visibility::INVISIBLE,
+            ..default()
+        },
+        Missile {
+            start_time: time.last_update().unwrap() + Duration::from_millis(100),
+            position_curve: bezier,
+            frame_curve: frames,
+            seed: seed,
+        },
+    ));
+
+    true
+}
+
 pub fn create_bubbles_circle(
     time: &Res<Time>,
     commands: &mut Commands,
@@ -50,11 +127,17 @@ pub fn create_bubbles_circle(
         texture_atlases.get(&font_atlas.texture_atlas).unwrap();
 
     let number_of_missiles = 20;
+
     let missile_material = materials.add(StandardMaterial {
         base_color: Color::rgb(1.0, 1.0, 1.0),
         unlit: true,
         ..default()
     });
+
+    let missile_mesh = meshes.add(Mesh::from(shape::Icosphere {
+        radius: 0.005,
+        subdivisions: 1,
+    }));
 
     for i in 0 .. number_of_missiles {
         let fraction = (i as f32) / (number_of_missiles as f32);
@@ -64,75 +147,22 @@ pub fn create_bubbles_circle(
             distance * f32::cos(theta),
             distance * f32::sin(theta));
 
-        let collision_result = rapier_context.cast_ray_and_get_normal(
-            transform.translation,
-            transform.up(),
-            f32::MAX,
-            true,
-            QueryFilter::new(),
-        );
+        let mut xform = transform
+            .mul_transform(
+                Transform::from_rotation(
+                    Quat::from_rotation_x(-3.0 * f32::PI() / 2.0)));
 
-        if !collision_result.is_some() {
+        let transformed_offset =
+            xform.right() * offset.x + xform.up() * offset.y;
+
+        xform.translation += transformed_offset;
+
+        let seed = (1000 * i) as f32;
+
+        if !create_missile(commands, time, rapier_context, &xform,
+                           &missile_mesh, &missile_material, seed) {
             return;
         }
-
-        let (_, ray_intersection) = collision_result.unwrap();
-
-        let launch_offset =
-            transform.right() * offset.x + transform.forward() * offset.y;
-        let hit_offset =
-            Vec3::ZERO;
-
-        let bezier = CubicBezierCurve {
-            p0: transform.translation + launch_offset,
-            p1: transform.translation + launch_offset + 1.0 * transform.up(),
-            p2: ray_intersection.point + hit_offset + 1.0 * ray_intersection.normal,
-            p3: ray_intersection.point + hit_offset,
-        };
-
-        let frames: PiecewiseLinearSpline<Frame> = {
-            let mut ts = Vec::new();
-            let mut bezier_samples = Vec::new();
-            let mut bezier_tangents = Vec::new();
-            let resolution = 1000;
-            for i in 0 .. resolution + 1 {
-                let t = (i as f32) / (resolution as f32);
-                ts.push(t);
-                bezier_samples.push(bezier.interpolate(t));
-                bezier_tangents.push(bezier.derivative(t).normalize());
-            }
-            let initial_frame = Frame {
-                forward: bezier_tangents[0],
-                up: transform.back(),
-                right: transform.right(),
-            };
-
-            let frames = crate::spline::rotation_minimizing_frames(
-                &initial_frame, &bezier_samples, &bezier_tangents);
-
-            PiecewiseLinearSpline::new(
-                &ts.iter().cloned().zip(frames.into_iter())
-                    .collect::<Vec<(f32, Frame)>>())
-        };
-
-        commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Icosphere {
-                    radius: 0.005,
-                    subdivisions: 1,
-                })),
-                material: missile_material.clone(),
-                transform: transform.clone(),
-                visibility: Visibility::INVISIBLE,
-                ..default()
-            },
-            Missile {
-                start_time: time.last_update().unwrap() + Duration::from_millis(100),
-                position_curve: bezier,
-                frame_curve: frames,
-                seed: (1000 * i) as f32,
-            },
-        ));
     }
 
     let lookup_rect = |character: char| -> GlyphRect {
@@ -216,7 +246,6 @@ pub fn update_bubbles_circles(
                 y_axis: frame.up,
                 z_axis: -frame.forward,
             });
-            //transform.scale = missile.path.derivative(t / duration) * 2.0;
         }
     }
     for (circle_entity, circle_gt, material, bubbles_circle) in bubbles_circles.iter() {
