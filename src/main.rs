@@ -44,9 +44,18 @@ pub mod shapes;
 pub mod self_destruct;
 
 pub fn main() {
+    let mut default_plugins = DefaultPlugins.build();
+    #[cfg(target_arch = "x86_64")]
+    {
+        default_plugins = default_plugins.set(AssetPlugin {
+            watch_for_changes: true,
+            ..Default::default()
+        });
+    }
+
     App::new()
         .insert_resource(Msaa { samples: 4 })
-        .add_plugins(DefaultPlugins)
+        .add_plugins(default_plugins)
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())

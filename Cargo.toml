@@ -24,8 +24,8 @@ ab_glyph = "*"
 noisy_bevy = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-# See https://bevyengine.org/learn/book/getting-started/setup/
-bevy = { version = "0.9.1" } #, features = ["dynamic"] }
+bevy_dylib = "*"
+bevy = { version = "0.9.1", features = ["dynamic"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
