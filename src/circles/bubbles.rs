@@ -25,6 +25,8 @@ pub struct TrailGenerating {
     trail_material: Handle<StandardMaterial>,
     trail_mesh: Handle<Mesh>,
     fade_duration: Duration,
+    previous_time: Instant,
+    previous_position: Vec3,
 }
 
 #[derive(Component)]
@@ -187,6 +189,8 @@ pub fn create_bubbles_circle(
                 trail_material: trail_material.clone(),
                 trail_mesh: trail_mesh.clone(),
                 fade_duration: Duration::from_millis(100),
+                previous_time: time.last_update().unwrap(),
+                previous_position: xform.translation,
             });
         } else {
             return;
@@ -292,18 +296,23 @@ pub fn update_bubbles_circles(
 
 pub fn update_trails(
     mut commands: Commands,
-    trail_generators: Query<(&TrailGenerating, &Transform)>,
+    time: Res<Time>,
+    mut trail_generators: Query<(&mut TrailGenerating, &Transform)>,
 ) {
-    for (trail_generator, transform) in trail_generators.iter() {
-        commands.spawn((
-            PbrBundle {
-                mesh: trail_generator.trail_mesh.clone(),
-                material: trail_generator.trail_material.clone(),
-                transform: transform.clone(),
-                ..default()
-            },
-            SelfDestructing::new(trail_generator.fade_duration),
-        ));
+    for (mut trail_generator, transform) in trail_generators.iter_mut() {
+        if (transform.translation - trail_generator.previous_position).length() > 0.05 {
+            commands.spawn((
+                PbrBundle {
+                    mesh: trail_generator.trail_mesh.clone(),
+                    material: trail_generator.trail_material.clone(),
+                    transform: transform.clone(),
+                    ..default()
+                },
+                SelfDestructing::new(trail_generator.fade_duration),
+            ));
+        }
+        trail_generator.previous_time = time.last_update().unwrap();
+        trail_generator.previous_position = transform.translation;
     }
 }
 
