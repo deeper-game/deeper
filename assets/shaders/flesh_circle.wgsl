@@ -10,6 +10,7 @@ struct FleshCircleMaterial {
     border: f32,
     flesh_time: f32,
     alpha: f32,
+    padding: vec3<f32>,
 }
 
 @group(1) @binding(0)

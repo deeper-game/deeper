@@ -189,6 +189,7 @@ struct FleshCircleMaterialUniform {
     border: f32,
     flesh_time: f32,
     alpha: f32,
+    padding: Vec3,
 }
 
 impl From<&FleshCircleMaterial> for FleshCircleMaterialUniform {
@@ -199,6 +200,7 @@ impl From<&FleshCircleMaterial> for FleshCircleMaterialUniform {
             border: material.border,
             flesh_time: material.flesh_time,
             alpha: material.alpha,
+            padding: Vec3::ZERO,
         }
     }
 }
