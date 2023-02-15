@@ -18,6 +18,7 @@ pub struct Missile {
     position_curve: CubicBezierCurve<Vec3>,
     frame_curve: PiecewiseLinearSpline<Frame>,
     seed: f32,
+    explosion_settings: ExplosionSettings,
 }
 
 #[derive(Component)]
@@ -33,12 +34,21 @@ pub struct BubblesCircle {
     start_time: Instant,
 }
 
+#[derive(Clone)]
+pub struct ExplosionSettings {
+    mesh: Handle<Mesh>,
+}
+
+#[derive(Component)]
+pub struct Explosion;
+
 pub fn create_missile(
     commands: &mut Commands,
     rapier_context: &Res<RapierContext>,
     transform: &Transform,
     mesh: &Handle<Mesh>,
     material: &Handle<StandardMaterial>,
+    explosion_settings: &ExplosionSettings,
     start_time: &Instant,
     seed: f32,
 ) -> Option<Entity> {
@@ -105,6 +115,7 @@ pub fn create_missile(
             position_curve: bezier,
             frame_curve: frames,
             seed: seed,
+            explosion_settings: explosion_settings.clone(),
         },
     )).id())
 }
@@ -147,6 +158,13 @@ pub fn create_bubbles_circle(
         subdivisions: 1,
     }));
 
+    let explosion_settings = ExplosionSettings {
+        mesh: meshes.add(Mesh::from(shape::Icosphere {
+            radius: 0.06,
+            subdivisions: 1,
+        })),
+    };
+
     let trail_material = materials.add(StandardMaterial {
         base_color: Color::rgba(1.0, 1.0, 1.0, 0.4),
         unlit: true,
@@ -179,11 +197,11 @@ pub fn create_bubbles_circle(
 
         if let Some(missile_entity) = create_missile(
             commands, rapier_context, &xform, &missile_mesh,
-            &missile_material, &start_time, seed
+            &missile_material, &explosion_settings, &start_time, seed
         ) {
             commands.entity(missile_entity).insert(TrailGenerating {
                 material: trail_material.clone(),
-                fade_duration: Duration::from_millis(1000),
+                fade_duration: Duration::from_millis(500),
                 previous_time: time.last_update().unwrap(),
                 previous_position: xform.translation,
             });
@@ -243,6 +261,7 @@ pub fn update_bubbles_circles(
     time: Res<Time>,
     mut missiles: Query<(Entity, &mut Visibility, &mut Transform, &Missile)>,
     bubbles_circles: Query<(Entity, &GlobalTransform, &Handle<BubblesCircleMaterial>, &BubblesCircle)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut bubbles_circle_materials: ResMut<Assets<BubblesCircleMaterial>>,
 ) {
     let circle_duration = 2.5;
@@ -256,6 +275,19 @@ pub fn update_bubbles_circles(
             }
             if t > circle_duration + missile_duration {
                 commands.entity(missile_entity).despawn();
+                commands.spawn((
+                    PbrBundle {
+                        mesh: missile.explosion_settings.mesh.clone(),
+                        material: materials.add(StandardMaterial {
+                            unlit: true,
+                            ..default()
+                        }),
+                        transform: transform.clone(),
+                        ..default()
+                    },
+                    Explosion,
+                    SelfDestructing::new(Duration::from_millis(500)),
+                ));
                 continue;
             }
             let td = f32::clamp((t - circle_duration) / missile_duration, 0.0, 1.0);
@@ -329,6 +361,38 @@ pub fn update_trails(
             trail_generator.previous_time = time.last_update().unwrap();
             trail_generator.previous_position = transform.translation;
         }
+    }
+}
+
+pub fn update_explosions(
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut explosions: Query<(&mut Transform, &Handle<StandardMaterial>), With<Explosion>>,
+) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let colors = [
+        Color::ORANGE,
+        Color::ORANGE_RED,
+        Color::RED,
+        Color::ORANGE,
+        Color::ORANGE_RED,
+        Color::RED,
+        Color::ORANGE,
+        Color::ORANGE_RED,
+        Color::RED,
+        Color::WHITE,
+        Color::GRAY,
+    ];
+    let color_dist = rand::distributions::Slice::new(&colors).unwrap();
+    for (mut transform, material) in explosions.iter_mut() {
+        transform.translation += 0.01 * Vec3::new(
+            rng.gen::<f32>() - 0.5,
+            rng.gen::<f32>() - 0.5,
+            rng.gen::<f32>() - 0.5,
+        );
+        transform.scale = Vec3::ONE * (1.0 - 0.25 + 0.5 * rng.gen::<f32>());
+        materials.get_mut(material).unwrap().base_color =
+            *rng.sample(&color_dist);
     }
 }
 

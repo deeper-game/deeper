@@ -168,6 +168,19 @@ fn spawn_level(
             color: Color::rgba(1.0, 1.0, 1.0, 1.0),
         }));
 
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Icosphere {
+                radius: 1.5,
+                subdivisions: 3,
+            })),
+            material: materials.add(Color::rgb(1.0, 0.8, 0.8).into()),
+            transform: Transform::from_xyz(1.5, 15.0, 1.5),
+            ..default()
+        },
+        Collider::ball(1.5),
+    ));
+
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
             intensity: 400.0,
