@@ -170,7 +170,7 @@ fn spawn_level(
 
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            intensity: 400.0,
             shadows_enabled: true,
             ..default()
         },

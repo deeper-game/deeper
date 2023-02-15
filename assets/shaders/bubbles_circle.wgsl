@@ -202,10 +202,12 @@ fn middle_out_line_segment(
     return result;
 }
 
+fn sigmoid(x: f32, transition: f32, speed: f32) -> f32 {
+    return 1.0 + tanh(speed * (x - transition));
+}
+
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
-    let time = material.time;
-
     var uv = in.uv;
     if (uv.x > 0.5) {
         uv.x -= 0.5;
@@ -216,7 +218,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     pos *= 0.75; // overall scale factor to make it fit
 
     var result = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-    let t = clamp(time / 2.5, 0.0, 1.0);
+    let t = clamp(material.time, 0.001, 0.999);
 
     let vertices = 6;
     let inner_circle_radius = 0.1;
@@ -271,13 +273,15 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         let center = bubble_circle_radius * vec2<f32>(cos(theta), sin(theta));
 
         var bubble_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-        if (time > f32(i) / f32(vertices)) {
+        {
+            let transition = (0.5 * f32(i) / f32(vertices)) + 0.45;
+            let speed = 10.0;
             bubble_pixel = single_circle(
                 Circle(
                     center,
                     bubble_inner_radius,
                     t * bubble_inner_weight),
-                time - f32(i) / f32(vertices),
+                sigmoid(t, transition, speed),
                 pos,
                 bubble_pixel);
             bubble_pixel = single_circle(
@@ -285,11 +289,12 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
                     center,
                     bubble_outer_radius,
                     t * bubble_outer_weight),
-                time - f32(i) / f32(vertices),
+                sigmoid(t, transition - 0.02, speed),
                 pos,
                 bubble_pixel);
             bubble_pixel *= bubble_color;
         }
+
         var glyph_pixel = paste_glyph(i, glyph_size, center, pos,
                                       vec4<f32>(0.0, 0.0, 0.0, 0.0));
         glyph_pixel = round(glyph_pixel);
