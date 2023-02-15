@@ -212,18 +212,23 @@ pub fn create_bubbles_circle(
         }
     };
 
+    use rand::seq::SliceRandom;
+    let mut symbols = "∀∃∅∧∨⊔⊓⊏⊑⊗⊕⊖⊛⊸⋈⋉≡⊤⊥⊦⊧".chars().collect::<Vec<char>>();
+    let mut rng = rand::thread_rng();
+    symbols.shuffle(&mut rng);
+
     commands.spawn((
         MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(crate::shapes::TwoSided { size: bubbles_size })),
             material: bubbles_circle_materials.add(BubblesCircleMaterial {
                 uniform: BubblesCircleMaterialUniform {
                     time: 0.0,
-                    bubble_glyph_0: lookup_rect('∀'),
-                    bubble_glyph_1: lookup_rect('∃'),
-                    bubble_glyph_2: lookup_rect('⊔'),
-                    bubble_glyph_3: lookup_rect('⊗'),
-                    bubble_glyph_4: lookup_rect('⊸'),
-                    bubble_glyph_5: lookup_rect('⋈'),
+                    bubble_glyph_0: lookup_rect(symbols[0]),
+                    bubble_glyph_1: lookup_rect(symbols[1]),
+                    bubble_glyph_2: lookup_rect(symbols[2]),
+                    bubble_glyph_3: lookup_rect(symbols[3]),
+                    bubble_glyph_4: lookup_rect(symbols[4]),
+                    bubble_glyph_5: lookup_rect(symbols[5]),
                 },
                 font_texture_atlas: Some(font_texture_atlas.texture.clone()),
             }),

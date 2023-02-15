@@ -31,7 +31,7 @@ pub fn load_font_atlas(
     font_assets: Res<FontAssets>,
 ) {
     let mut text_bundle = TextBundle::from_section(
-        "∀∃⊔⊗⊸⋈",
+        "∀∃∅∧∨⊔⊓⊏⊑⊗⊕⊖⊛⊸⋈⋉≡⊤⊥⊦⊧",
         TextStyle {
             font: font_assets.dejavu_sans.clone(),
             font_size: 60.0,
