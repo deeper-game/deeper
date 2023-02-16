@@ -168,8 +168,9 @@ pub fn create_bubbles_circle(
     };
 
     let trail_material = materials.add(StandardMaterial {
-        base_color: Color::rgba(1.0, 1.0, 1.0, 0.4),
-        unlit: true,
+        base_color: Color::rgba(1.0, 1.0, 1.0, 0.35),
+        emissive: Color::rgba(1.0, 1.0, 1.0, 0.35),
+        alpha_mode: AlphaMode::Blend,
         ..default()
     });
 
@@ -258,6 +259,14 @@ pub fn create_bubbles_circle(
     ));
 }
 
+pub fn sigmoid(
+    t: f32,
+    transition: f32,
+    speed: f32,
+) -> f32 {
+    return 1.0 + f32::tanh(speed * (t - transition));
+}
+
 pub fn update_bubbles_circles(
     rapier_context: Res<RapierContext>,
     mut commands: Commands,
@@ -294,7 +303,8 @@ pub fn update_bubbles_circles(
                 continue;
             }
             let td = f32::clamp((t - circle_duration) / missile_duration, 0.0, 1.0);
-            let envelope = 1.0 - ((1.0 - (2.0 * td)) * (1.0 - (2.0 * td)));
+            let envelope_offset = 0.2 + 2.0 * sigmoid(td, 0.5, 1.0);
+            let envelope = envelope_offset + 1.0 - ((1.0 - (2.0 * td)) * (1.0 - (2.0 * td)));
             let wiggliness = 0.15;
             let mut noise_x = noisy_bevy::simplex_noise_2d_seeded(
                 Vec2::new(2.0 * td, 0.0),
@@ -360,6 +370,7 @@ pub fn update_trails(
                     transform.translation,
                     0.001),
                 SelfDestructing::new(trail_generator.fade_duration),
+                bevy::pbr::NotShadowCaster,
             ));
             trail_generator.previous_time = time.last_update().unwrap();
             trail_generator.previous_position = transform.translation;
