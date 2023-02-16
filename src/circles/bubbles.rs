@@ -434,7 +434,7 @@ struct BubblesCircleMaterialUniform {
     #[align(16)]
     time: f32,
     #[align(16)]
-    bubble_glyphs: [GlyphRect; 8],
+    bubble_glyphs: [GlyphRect; NUM_BUBBLES],
 }
 
 impl Material for BubblesCircleMaterial {
