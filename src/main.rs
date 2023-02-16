@@ -22,6 +22,7 @@ use crate::enemy::spawn_enemy;
 use crate::fps_controller::{
     FpsController, FpsControllerInput, LogicalPlayer, RenderPlayer
 };
+use crate::importable_shaders::ImportableShader;
 
 pub mod outline;
 pub mod terminal_key;
@@ -42,6 +43,7 @@ pub mod circles;
 pub mod spline;
 pub mod shapes;
 pub mod self_destruct;
+pub mod importable_shaders;
 
 pub fn main() {
     let mut default_plugins = DefaultPlugins.build();
@@ -72,6 +74,7 @@ pub fn main() {
         .add_plugin(crate::enemy::EnemyPlugin)
         .add_plugin(crate::circles::CirclePlugin)
         .add_plugin(crate::self_destruct::SelfDestructPlugin)
+        .add_plugin(crate::importable_shaders::ImportableShadersPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)
@@ -86,6 +89,8 @@ pub fn main() {
 fn setup(
     mut commands: Commands,
 ) {
+    commands.spawn(ImportableShader::new("animation"));
+
     commands.spawn((
         Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
         ActiveEvents::COLLISION_EVENTS,
