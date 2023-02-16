@@ -12,6 +12,8 @@ use bevy_rapier3d::prelude::{RapierContext, QueryFilter};
 use bevy::utils::{Instant, Duration};
 use num_traits::float::FloatConst;
 
+const NUM_BUBBLES: usize = 6;
+
 #[derive(Component)]
 pub struct Missile {
     start_time: Instant,
@@ -229,6 +231,12 @@ pub fn create_bubbles_circle(
     let mut symbols = "∀∃∅∧∨⊔⊓⊏⊑⊗⊕⊖⊛⊸⋈⋉≡⊤⊥⊦⊧".chars().collect::<Vec<char>>();
     let mut rng = rand::thread_rng();
     symbols.shuffle(&mut rng);
+    assert!(symbols.len() >= NUM_BUBBLES);
+
+    let mut rects = [GlyphRect::default(); NUM_BUBBLES];
+    for i in 0 .. NUM_BUBBLES {
+        rects[i] = lookup_rect(symbols[i]);
+    }
 
     commands.spawn((
         MaterialMeshBundle {
@@ -236,12 +244,7 @@ pub fn create_bubbles_circle(
             material: bubbles_circle_materials.add(BubblesCircleMaterial {
                 uniform: BubblesCircleMaterialUniform {
                     time: 0.0,
-                    bubble_glyph_0: lookup_rect(symbols[0]),
-                    bubble_glyph_1: lookup_rect(symbols[1]),
-                    bubble_glyph_2: lookup_rect(symbols[2]),
-                    bubble_glyph_3: lookup_rect(symbols[3]),
-                    bubble_glyph_4: lookup_rect(symbols[4]),
-                    bubble_glyph_5: lookup_rect(symbols[5]),
+                    bubble_glyphs: rects,
                 },
                 font_texture_atlas: Some(font_texture_atlas.texture.clone()),
             }),
@@ -407,7 +410,7 @@ pub struct BubblesCircleMaterial {
     font_texture_atlas: Option<Handle<Image>>,
 }
 
-#[derive(ShaderType, Debug, Clone)]
+#[derive(ShaderType, Debug, Clone, Copy, Default)]
 struct GlyphRect {
     min_x: f32,
     min_y: f32,
@@ -420,17 +423,7 @@ struct BubblesCircleMaterialUniform {
     #[align(16)]
     time: f32,
     #[align(16)]
-    bubble_glyph_0: GlyphRect,
-    #[align(16)]
-    bubble_glyph_1: GlyphRect,
-    #[align(16)]
-    bubble_glyph_2: GlyphRect,
-    #[align(16)]
-    bubble_glyph_3: GlyphRect,
-    #[align(16)]
-    bubble_glyph_4: GlyphRect,
-    #[align(16)]
-    bubble_glyph_5: GlyphRect,
+    bubble_glyphs: [GlyphRect; 8],
 }
 
 impl Material for BubblesCircleMaterial {

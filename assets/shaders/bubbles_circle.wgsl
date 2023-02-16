@@ -8,21 +8,13 @@ struct GlyphRect {
     max_y: f32,
 }
 
+let NUM_BUBBLES: i32 = 6;
+
 struct BubblesCircleMaterial {
     @align(16)
     time: f32,
     @align(16)
-    bubble_glyph_0: GlyphRect,
-    @align(16)
-    bubble_glyph_1: GlyphRect,
-    @align(16)
-    bubble_glyph_2: GlyphRect,
-    @align(16)
-    bubble_glyph_3: GlyphRect,
-    @align(16)
-    bubble_glyph_4: GlyphRect,
-    @align(16)
-    bubble_glyph_5: GlyphRect,
+    bubble_glyphs: array<GlyphRect, NUM_BUBBLES>,
 }
 
 @group(1) @binding(0)
@@ -110,20 +102,7 @@ fn paste_glyph(
     pos: vec2<f32>,
     color: vec4<f32>,
 ) -> vec4<f32> {
-    var g = material.bubble_glyph_0;
-    if (index == 0) {
-        g = material.bubble_glyph_0;
-    } else if (index == 1) {
-        g = material.bubble_glyph_1;
-    } else if (index == 2) {
-        g = material.bubble_glyph_2;
-    } else if (index == 3) {
-        g = material.bubble_glyph_3;
-    } else if (index == 4) {
-        g = material.bubble_glyph_4;
-    } else if (index == 5) {
-        g = material.bubble_glyph_5;
-    }
+    let g = material.bubble_glyphs[index % NUM_BUBBLES];
 
     let width = g.max_x - g.min_x;
     let height = g.max_y - g.min_y;
@@ -220,7 +199,6 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     var result = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     let t = clamp(material.time, 0.001, 0.999);
 
-    let vertices = 6;
     let inner_circle_radius = 0.1;
     let inner_circle_weight = 0.01;
     let outer_circle_radius = 0.2;
@@ -268,13 +246,13 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     result.g *= 0.6;
     result.b *= 0.7;
 
-    for(var i: i32 = 0; i < vertices; i = i + 1) {
-        let theta = f32(i) * tau / f32(vertices);
+    for(var i: i32 = 0; i < NUM_BUBBLES; i = i + 1) {
+        let theta = f32(i) * tau / f32(NUM_BUBBLES);
         let center = bubble_circle_radius * vec2<f32>(cos(theta), sin(theta));
 
         var bubble_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
         {
-            let transition = (0.5 * f32(i) / f32(vertices)) + 0.45;
+            let transition = (0.5 * f32(i) / f32(NUM_BUBBLES)) + 0.45;
             let speed = 10.0;
             bubble_pixel = single_circle(
                 Circle(
@@ -307,13 +285,13 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
     {
         var ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-        for(var i: i32 = 0; i < vertices; i = i + 1) {
-            for(var j: i32 = 0; j < vertices; j = j + 1) {
-                if (abs(j - i) == (vertices / 2)) {
+        for(var i: i32 = 0; i < NUM_BUBBLES; i = i + 1) {
+            for(var j: i32 = 0; j < NUM_BUBBLES; j = j + 1) {
+                if (abs(j - i) == (NUM_BUBBLES / 2)) {
                     continue;
                 }
-                let theta_i = f32(i) * tau / f32(vertices);
-                let theta_j = f32(j) * tau / f32(vertices);
+                let theta_i = f32(i) * tau / f32(NUM_BUBBLES);
+                let theta_j = f32(j) * tau / f32(NUM_BUBBLES);
                 let center_i = bubble_circle_radius * vec2<f32>(cos(theta_i), sin(theta_i));
                 let center_j = bubble_circle_radius * vec2<f32>(cos(theta_j), sin(theta_j));
                 ngram_pixel =
@@ -322,8 +300,8 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
                                             t, pos, ngram_pixel);
             }
         }
-        for(var i: i32 = 0; i < vertices; i = i + 1) {
-            let theta = f32(i) * tau / f32(vertices);
+        for(var i: i32 = 0; i < NUM_BUBBLES; i = i + 1) {
+            let theta = f32(i) * tau / f32(NUM_BUBBLES);
             let center = bubble_circle_radius * vec2<f32>(cos(theta), sin(theta));
             if (length(pos - center) < bubble_inner_radius) {
                 ngram_pixel = vec4<f32>(0.0, 0.0, 0.0, 0.0);
