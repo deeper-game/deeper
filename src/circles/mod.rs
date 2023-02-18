@@ -8,6 +8,7 @@ use num_traits::float::FloatConst;
 
 pub mod flesh;
 pub mod bubbles;
+pub mod associa;
 
 pub struct CirclePlugin;
 
@@ -19,6 +20,7 @@ impl Plugin for CirclePlugin {
             .add_system(load_font_atlas.in_schedule(OnEnter(GameState::Ready)))
             .add_system(flesh::update_flesh_circles.run_if(in_state(GameState::Ready)))
             .add_system(bubbles::update_bubbles_circles.run_if(in_state(GameState::Ready)))
+            .add_system(associa::update_associa_circles.run_if(in_state(GameState::Ready)))
             .add_system(debug_circles.run_if(in_state(GameState::Ready)));
     }
 }
@@ -47,6 +49,7 @@ pub fn debug_circles(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut flesh_circle_materials: ResMut<Assets<flesh::FleshCircleMaterial>>,
     mut bubbles_circle_materials: ResMut<Assets<bubbles::BubblesCircleMaterial>>,
+    mut associa_circle_materials: ResMut<Assets<associa::AssociaCircleMaterial>>,
     camera: Query<&Transform, (With<RenderPlayer>, Without<Peer>)>,
 
     rapier_context: Res<RapierContext>,
@@ -72,5 +75,10 @@ pub fn debug_circles(
             &mut bubbles_circle_materials, &transform,
             &rapier_context,
             &font_assets, &fonts, &font_atlas_sets, &texture_atlases);
+    }
+    if keyboard.just_pressed(KeyCode::Key3) {
+        associa::create_associa_circle(
+            &time, &mut commands, &mut meshes, &mut materials,
+            &mut associa_circle_materials, &transform);
     }
 }
