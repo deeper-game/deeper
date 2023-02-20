@@ -274,6 +274,13 @@ impl SpecializedMeshPipeline for OutlinePipeline {
             self.window_size_layout.clone(),
         ];
 
+        let mut frag_texture_format = TextureFormat::bevy_default();
+
+        #[cfg(target_arch = "x86_64")]
+        {
+            frag_texture_format = TextureFormat::Rgba16Float;
+        }
+
         Ok(RenderPipelineDescriptor {
             vertex: VertexState {
                 shader: OUTLINE_SHADER_HANDLE.typed::<Shader>(),
@@ -286,7 +293,7 @@ impl SpecializedMeshPipeline for OutlinePipeline {
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: TextureFormat::bevy_default(),
+                    format: frag_texture_format,
                     blend: Some(BlendState::REPLACE),
                     write_mask: ColorWrites::ALL,
                 })],

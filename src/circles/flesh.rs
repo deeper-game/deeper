@@ -27,14 +27,14 @@ pub fn create_flesh_circle(
     flesh_circle_materials: &mut ResMut<Assets<FleshCircleMaterial>>,
     transform: &Transform,
 ) {
+    let laser_bloom = 10.0;
     let laser_material = materials.add(StandardMaterial {
-        base_color: Color::Rgba {
-            red: 0.871,
-            green: 1.0,
-            blue: 0.905,
+        emissive: Color::Rgba {
+            red: laser_bloom * 0.871,
+            green: laser_bloom * 1.0,
+            blue: laser_bloom * 0.905,
             alpha: 1.0,
         },
-        unlit: true,
         ..default()
     });
     let flesh_size = 0.1;

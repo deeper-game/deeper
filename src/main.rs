@@ -117,12 +117,20 @@ fn setup(
         Inventory::new(),
     ));
 
+    use bevy::core_pipeline::bloom::BloomSettings;
+
     commands.spawn((
         Camera3dBundle {
             transform: Transform::from_xyz(10.0, 10.0, 10.0),
+            #[cfg(target_arch = "x86_64")]
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
             ..default()
         },
         RenderPlayer(0),
+        BloomSettings::default(),
     ));
 }
 
