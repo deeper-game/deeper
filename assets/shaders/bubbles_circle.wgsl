@@ -92,12 +92,24 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let bubble_inner_weight = 0.002;
     let bubble_outer_radius = 0.06;
     let bubble_outer_weight = 0.002;
-    let bubble_color = vec4<f32>(0.8, 0.8, 0.9, 1.0);
+    let bubble_bloom = 1.0;
+    let bubble_color = vec4<f32>(bubble_bloom * 0.8,
+                                 bubble_bloom * 0.8,
+                                 bubble_bloom * 0.9,
+                                 1.0);
     let glyph_size = 0.375;
-    let glyph_color = vec4<f32>(0.16863, 0.62745, 1.0, 1.0);
+    let glyph_bloom = 1.5;
+    let glyph_color = vec4<f32>(glyph_bloom * 0.16863,
+                                glyph_bloom * 0.62745,
+                                glyph_bloom * 1.0,
+                                1.0);
     let ngram_spacing = 0.01;
     let ngram_weight = 0.0015;
-    let ngram_color = vec4<f32>(0.5, 0.5, 0.6, 1.0);
+    let ngram_bloom = 1.0;
+    let ngram_color = vec4<f32>(ngram_bloom * 0.5,
+                                ngram_bloom * 0.5,
+                                ngram_bloom * 0.6,
+                                1.0);
 
     result = triple_circle(
         Circle(

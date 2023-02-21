@@ -384,7 +384,7 @@ pub fn update_explosions(
 ) {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let colors = [
+    let mut colors = [
         Color::ORANGE,
         Color::ORANGE_RED,
         Color::RED,
@@ -397,6 +397,14 @@ pub fn update_explosions(
         Color::WHITE,
         Color::GRAY,
     ];
+    for mut color in colors.iter_mut() {
+        let [r, g, b, a] = color.clone().as_linear_rgba_f32();
+        let explosion_bloom = 3.0;
+        *color = Color::rgba_linear(explosion_bloom * r,
+                                    explosion_bloom * g,
+                                    explosion_bloom * b,
+                                    a);
+    }
     let color_dist = rand::distributions::Slice::new(&colors).unwrap();
     for (mut transform, material) in explosions.iter_mut() {
         transform.translation += 0.01 * Vec3::new(
