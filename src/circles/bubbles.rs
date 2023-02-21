@@ -1,4 +1,6 @@
 use crate::assets::FontAssets;
+use crate::explosion::{ExplosionSettings, create_explosion};
+use crate::trail::TrailGenerating;
 use crate::self_destruct::SelfDestructing;
 use crate::spline::{Frame, PiecewiseLinearSpline, CubicBezierCurve};
 use ab_glyph::Font as FontTrait;
@@ -24,25 +26,9 @@ pub struct Missile {
 }
 
 #[derive(Component)]
-pub struct TrailGenerating {
-    material: Handle<StandardMaterial>,
-    fade_duration: Duration,
-    previous_time: Instant,
-    previous_position: Vec3,
-}
-
-#[derive(Component)]
 pub struct BubblesCircle {
     start_time: Instant,
 }
-
-#[derive(Clone)]
-pub struct ExplosionSettings {
-    mesh: Handle<Mesh>,
-}
-
-#[derive(Component)]
-pub struct Explosion;
 
 pub fn create_missile(
     commands: &mut Commands,
@@ -287,19 +273,10 @@ pub fn update_bubbles_circles(
             }
             if t > circle_duration + missile_duration {
                 commands.entity(missile_entity).despawn();
-                commands.spawn((
-                    PbrBundle {
-                        mesh: missile.explosion_settings.mesh.clone(),
-                        material: materials.add(StandardMaterial {
-                            unlit: true,
-                            ..default()
-                        }),
-                        transform: transform.clone(),
-                        ..default()
-                    },
-                    Explosion,
-                    SelfDestructing::new(Duration::from_millis(500)),
-                ));
+                create_explosion(&mut commands,
+                                 &mut materials,
+                                 &missile.explosion_settings,
+                                 &transform);
                 continue;
             }
             let td = f32::clamp((t - circle_duration) / missile_duration, 0.0, 1.0);
@@ -336,85 +313,6 @@ pub fn update_bubbles_circles(
             let m = &mut bubbles_circle_materials.get_mut(material).unwrap();
             m.uniform.time = t;
         }
-    }
-}
-
-pub fn trail_line_segment(
-    meshes: &mut ResMut<Assets<Mesh>>,
-    material: Handle<StandardMaterial>,
-    start: Vec3,
-    end: Vec3,
-    radius: f32,
-) -> PbrBundle {
-    let center = (end + start) / 2.0;
-    let length = (end - start).length();
-    let mesh = meshes.add(Mesh::from(
-        shape::Box::new(radius, radius, length)));
-    let transform = Transform::from_translation(center)
-        .looking_at(end, Vec3::NEG_Y);
-    PbrBundle { mesh, material, transform, ..default() }
-}
-
-pub fn update_trails(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    time: Res<Time>,
-    mut trail_generators: Query<(&mut TrailGenerating, &Transform)>,
-) {
-    for (mut trail_generator, transform) in trail_generators.iter_mut() {
-        if (transform.translation - trail_generator.previous_position).length() > 0.1 {
-            commands.spawn((
-                trail_line_segment(
-                    &mut meshes, trail_generator.material.clone(),
-                    trail_generator.previous_position,
-                    transform.translation,
-                    0.001),
-                SelfDestructing::new(trail_generator.fade_duration),
-                bevy::pbr::NotShadowCaster,
-            ));
-            trail_generator.previous_time = time.last_update().unwrap();
-            trail_generator.previous_position = transform.translation;
-        }
-    }
-}
-
-pub fn update_explosions(
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut explosions: Query<(&mut Transform, &Handle<StandardMaterial>), With<Explosion>>,
-) {
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-    let mut colors = [
-        Color::ORANGE,
-        Color::ORANGE_RED,
-        Color::RED,
-        Color::ORANGE,
-        Color::ORANGE_RED,
-        Color::RED,
-        Color::ORANGE,
-        Color::ORANGE_RED,
-        Color::RED,
-        Color::WHITE,
-        Color::GRAY,
-    ];
-    for mut color in colors.iter_mut() {
-        let [r, g, b, a] = color.clone().as_linear_rgba_f32();
-        let explosion_bloom = 3.0;
-        *color = Color::rgba_linear(explosion_bloom * r,
-                                    explosion_bloom * g,
-                                    explosion_bloom * b,
-                                    a);
-    }
-    let color_dist = rand::distributions::Slice::new(&colors).unwrap();
-    for (mut transform, material) in explosions.iter_mut() {
-        transform.translation += 0.01 * Vec3::new(
-            rng.gen::<f32>() - 0.5,
-            rng.gen::<f32>() - 0.5,
-            rng.gen::<f32>() - 0.5,
-        );
-        transform.scale = Vec3::ONE * (1.0 - 0.25 + 0.5 * rng.gen::<f32>());
-        materials.get_mut(material).unwrap().base_color =
-            *rng.sample(&color_dist);
     }
 }
 

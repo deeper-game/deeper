@@ -44,6 +44,8 @@ pub mod spline;
 pub mod shapes;
 pub mod self_destruct;
 pub mod importable_shaders;
+pub mod explosion;
+pub mod trail;
 
 pub fn main() {
     let mut default_plugins = DefaultPlugins.build();
@@ -75,6 +77,8 @@ pub fn main() {
         .add_plugin(crate::circles::CirclePlugin)
         .add_plugin(crate::self_destruct::SelfDestructPlugin)
         .add_plugin(crate::importable_shaders::ImportableShadersPlugin)
+        .add_plugin(crate::explosion::ExplosionPlugin)
+        .add_plugin(crate::trail::TrailPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)

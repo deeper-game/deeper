@@ -21,8 +21,6 @@ impl Plugin for CirclePlugin {
                 SystemSet::on_update(crate::assets::GameState::Ready)
                     .with_system(flesh::update_flesh_circles)
                     .with_system(bubbles::update_bubbles_circles)
-                    .with_system(bubbles::update_trails)
-                    .with_system(bubbles::update_explosions)
                     .with_system(debug_circles));
     }
 }
