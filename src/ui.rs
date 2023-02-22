@@ -9,10 +9,14 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(UiState::CreateOrJoin(CreateOrJoinState {
-                room_id: String::new(),
-                room_size: 2,
-            }))
+            .insert_resource(
+                UiState::PlayingGame(PlayingGameState {})
+                // TODO(taktoa): finish implementing multiplayer
+                // UiState::CreateOrJoin(CreateOrJoinState {
+                //     room_id: String::new(),
+                //     room_size: 2,
+                // })
+            )
             .add_system(manage_cursor)
             .add_system(show_create_or_join)
             .add_system_set(SystemSet::on_enter(GameState::Ready)
