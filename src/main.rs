@@ -141,6 +141,7 @@ fn setup(
 
 fn spawn_level(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
@@ -199,6 +200,25 @@ fn spawn_level(
         Collider::ball(1.5),
     ));
 
+    // use bevy_scene_hook::{SceneHook, HookedSceneBundle};
+    // let scene0 = asset_server.load("gltf/vornak.glb#Scene0");
+    // let mut vornak_transform = Transform::from_xyz(4.0, 1.0, 4.0)
+    //     .with_scale(Vec3::splat(0.2));
+    // vornak_transform.rotate_y(2.0);
+    // commands.spawn((
+    //     HookedSceneBundle {
+    //         scene: SceneBundle {
+    //             scene: scene0,
+    //             transform: vornak_transform,
+    //             ..Default::default()
+    //         },
+    //         hook: SceneHook::new(|entity, cmds| {
+    //             println!("DEBUG: {:?}",
+    //                      entity.get::<Name>().map(|t| t.as_str()));
+    //         }),
+    //     },
+    // ));
+
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
             intensity: 400.0,
@@ -217,7 +237,6 @@ fn spawn_projectiles(
     keyboard: Res<Input<KeyCode>>,
     player: Query<&GlobalTransform, With<RenderPlayer>>,
 ) {
-
     if keyboard.just_pressed(KeyCode::F) {
         let camera = player.single();
         let velocity = 0.1 * camera.forward();
