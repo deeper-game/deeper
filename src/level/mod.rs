@@ -1,186 +1,20 @@
 use bevy::prelude::*;
 use bevy::math::IVec3;
-use bevy::render::render_resource::TextureFormat;
-use bitvec::vec::BitVec;
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AABB {
-    pub minimum: IVec3,
-    pub maximum: IVec3,
-}
+use crate::level::aabb::AABB;
+use crate::level::brick::Brick;
+use crate::level::doorway::{Doorway, DoorwayMode};
+use crate::level::erior::{Erior, blocks_to_aabbs};
+use crate::level::integer_matrix::IMat3;
+use crate::level::voxel::{Voxel, CardinalDir, VoxelShape, Texture, Style};
 
-impl AABB {
-    pub fn contains(&self, pos: &IVec3) -> bool {
-        pos.cmpge(self.minimum).all() && pos.cmple(self.maximum).all()
-    }
-
-    pub fn shift_to_zero(&self) -> AABB {
-        AABB {
-            minimum: IVec3::ZERO,
-            maximum: self.maximum - self.minimum
-        }
-    }
-
-    pub fn shift(&self, offset: &IVec3) -> AABB {
-        AABB {
-            minimum: self.minimum + *offset,
-            maximum: self.maximum + *offset,
-        }
-    }
-
-    pub fn convex_hull(bounding_boxes: &[AABB]) -> Option<AABB> {
-        if bounding_boxes.is_empty() {
-            return None;
-        }
-        let mut minimum = bounding_boxes[0].minimum;
-        let mut maximum = bounding_boxes[0].maximum;
-        for bb in bounding_boxes {
-            minimum = bb.clone().minimum.min(minimum);
-            maximum = bb.clone().maximum.max(maximum);
-        }
-        Some(AABB { minimum, maximum })
-    }
-
-    pub fn dimensions(&self) -> (u32, u32, u32) {
-        let dx = (self.maximum.x - self.minimum.x + 1) as u32;
-        let dy = (self.maximum.y - self.minimum.y + 1) as u32;
-        let dz = (self.maximum.z - self.minimum.z + 1) as u32;
-        (dx, dy, dz)
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item=IVec3> + '_ {
-        let (dx, dy, dz) = self.dimensions();
-        let size = dx * dy * dz;
-        (0 .. size).map(move |i: u32| -> IVec3 {
-            let (i, z) = (i % (dx * dy), i / (dx * dy));
-            let (i, y) = (i % dx, i / dx);
-            let (i, x) = (i % 1, i / 1);
-            self.minimum + IVec3::new(x as i32, y as i32, z as i32)
-        })
-    }
-
-    pub fn has_intersection(lhs: &AABB, rhs: &AABB) -> bool {
-        ((lhs.minimum.cmple(rhs.minimum) & rhs.minimum.cmple(lhs.maximum))
-            | (rhs.minimum.cmple(lhs.minimum) & lhs.minimum.cmple(rhs.maximum))).all()
-    }
-
-    pub fn intersection(lhs: &AABB, rhs: &AABB) -> Option<AABB> {
-        if !AABB::has_intersection(lhs, rhs) { return None; }
-        let p = lhs.minimum.max(rhs.minimum);
-        let q = lhs.maximum.min(rhs.maximum);
-        Some(AABB {
-            minimum: p.min(q),
-            maximum: p.max(q),
-        })
-    }
-
-    pub fn has_same_shape(lhs: &AABB, rhs: &AABB) -> bool {
-        (lhs.maximum - lhs.minimum) == (rhs.maximum - rhs.minimum)
-    }
-
-    pub fn rotate(&self, matrix: &IMat3) -> AABB {
-        let p = matrix.mul_vec3(&self.minimum);
-        let q = matrix.mul_vec3(&self.maximum);
-        AABB {
-            minimum: p.min(q),
-            maximum: p.max(q),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Brick<T> {
-    pub bounding_box: AABB,
-    pub contents: Vec<T>,
-}
-
-impl<T> Brick<T> {
-    pub fn new(position: &IVec3, dimensions: &(u32, u32, u32)) -> Brick<T>
-    where T: Clone + Default
-    {
-        let bounding_box = AABB {
-            minimum: *position,
-            maximum: *position + IVec3::new(dimensions.0 as i32 - 1,
-                                            dimensions.1 as i32 - 1,
-                                            dimensions.2 as i32 - 1),
-        };
-        let mut contents = Vec::new();
-        contents.resize((dimensions.0 * dimensions.1 * dimensions.2) as usize,
-                        default());
-        Brick { bounding_box, contents }
-    }
-
-    pub fn index(&self, position: &IVec3) -> &T {
-        let (width, height, depth) = self.bounding_box.dimensions();
-        let [x_i32, y_i32, z_i32] =
-            (*position - self.bounding_box.minimum).to_array();
-        assert!(x_i32 >= 0);
-        assert!(y_i32 >= 0);
-        assert!(z_i32 >= 0);
-        let (x, y, z) = (x_i32 as u32, y_i32 as u32, z_i32 as u32);
-        &self.contents[(width * height * z + width * y + x) as usize]
-    }
-
-    pub fn index_mut(&mut self, position: &IVec3) -> &mut T {
-        let (width, height, depth) = self.bounding_box.dimensions();
-        let [x_i32, y_i32, z_i32] =
-            (*position - self.bounding_box.minimum).to_array();
-        assert!(x_i32 >= 0);
-        assert!(y_i32 >= 0);
-        assert!(z_i32 >= 0);
-        let (x, y, z) = (x_i32 as u32, y_i32 as u32, z_i32 as u32);
-        &mut self.contents[(width * height * z + width * y + x) as usize]
-    }
-
-    pub fn rotate(&self, matrix: &IMat3) -> Brick<T> where T: Clone + Default {
-        let bounding_box = self.bounding_box.rotate(matrix);
-        let mut result: Brick<T> =
-            Brick::new(&bounding_box.minimum, &bounding_box.dimensions());
-        for pos in self.bounding_box.iter() {
-            *result.index_mut(&matrix.mul_vec3(&pos)) =
-                self.index(&pos).clone();
-        }
-        result
-    }
-
-    pub fn shift(&mut self, offset: &IVec3) {
-        self.bounding_box = self.bounding_box.shift(offset);
-    }
-
-    pub fn blit(&mut self, other: &Brick<T>) where T: Clone + Default {
-        let bounding_box = AABB::convex_hull(&[
-            self.bounding_box.clone(),
-            other.bounding_box.clone(),
-        ]).unwrap();
-
-        let mut result =
-            Brick::new(&bounding_box.minimum, &bounding_box.dimensions());
-
-        for pos in self.bounding_box.clone().iter() {
-            *result.index_mut(&pos) = self.index(&pos).clone();
-        }
-
-        for pos in other.bounding_box.clone().iter() {
-            *result.index_mut(&pos) = other.index(&pos).clone();
-        }
-
-        self.bounding_box = bounding_box;
-        self.contents = result.contents;
-    }
-
-    pub fn slice(&self, region: &AABB) -> Option<Brick<T>>
-    where T: Clone + Default
-    {
-        let intersection = AABB::intersection(&self.bounding_box, region)?;
-        let mut result = Brick::new(&intersection.minimum,
-                                    &intersection.dimensions());
-        for pos in intersection.iter() {
-            *result.index_mut(&pos) = self.index(&pos).clone();
-        }
-        Some(result)
-    }
-}
+pub mod aabb;
+pub mod brick;
+pub mod doorway;
+pub mod erior;
+pub mod integer_matrix;
+pub mod voxel;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Map {
@@ -189,86 +23,54 @@ pub struct Map {
     pub voxels: Brick<Voxel>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DoorwayMode {
-    Neither,
-    Entrance,
-    Exit,
-}
+impl Map {
+    pub fn room_gluing(
+        starting_room: &Room, size: usize, rooms: &[Room]
+    ) -> Map {
+        let mut map = Map {
+            room_boxes: vec![starting_room.voxels.bounding_box.clone()],
+            open_doorways: starting_room.doorways.iter().cloned().collect(),
+            voxels: starting_room.voxels.clone(),
+        };
 
-impl DoorwayMode {
-    fn inverse(&self) -> DoorwayMode {
-        match *self {
-            DoorwayMode::Neither => DoorwayMode::Neither,
-            DoorwayMode::Entrance => DoorwayMode::Exit,
-            DoorwayMode::Exit => DoorwayMode::Entrance,
+        let mut rooms_with_rotations = HashSet::new();
+        for room in rooms {
+            for rotated_room in room.all_y_rotations() {
+                rooms_with_rotations.insert(rotated_room);
+            }
         }
-    }
 
-    fn compatible(x: &DoorwayMode, y: &DoorwayMode) -> bool {
-        *x == y.inverse()
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Doorway {
-    mode: DoorwayMode,
-    normal: IVec3,
-    bounding_box: AABB,
-}
-
-impl Doorway {
-    fn rotate(&self, matrix: &IMat3) -> Doorway {
-        let mut result = self.clone();
-        result.normal = matrix.mul_vec3(&result.normal);
-        result.bounding_box = result.bounding_box.rotate(matrix);
-        result
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CardinalDir {
-    East,
-    North,
-    West,
-    South,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum VoxelShape {
-    Air,
-    Solid,
-    Staircase,
-    Roof { slope: fraction::Fraction },
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Texture {
-    None,
-    Stone,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Style {
-    Normal,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Voxel {
-    pub orientation: CardinalDir,
-    pub shape: VoxelShape,
-    pub texture: Texture,
-    pub style: Style,
-}
-
-impl Default for Voxel {
-    fn default() -> Voxel {
-        Voxel {
-            orientation: CardinalDir::East,
-            shape: VoxelShape::Air,
-            texture: Texture::None,
-            style: Style::Normal,
+        let mut rng = rand::thread_rng();
+        for iter in 0 .. size {
+            println!("Room gluing iteration {}", iter);
+            let mut candidates = Vec::<(DoorwayMatch, &Room)>::new();
+            for open_doorway in &map.open_doorways {
+                for room in &rooms_with_rotations {
+                    for m in match_room_against_doorway(&map, room, open_doorway) {
+                        candidates.push((m, room));
+                    }
+                }
+            }
+            if candidates.is_empty() {
+                println!("Room gluing had no candidates, ending generation");
+                break;
+            }
+            use rand::distributions::Distribution;
+            let dist = rand::distributions::Uniform::from(0 .. candidates.len());
+            let (ref doorway_match, room) = candidates[dist.sample(&mut rng)];
+            let mut room_voxels = room.voxels.clone();
+            room_voxels.shift(&doorway_match.offset);
+            map.room_boxes.push(room_voxels.bounding_box.clone());
+            for doorway in &room.doorways {
+                if doorway != &doorway_match.room_doorway {
+                    map.open_doorways.insert(doorway.clone());
+                }
+            }
+            map.voxels.blit(&room_voxels);
+            map.open_doorways.remove(&doorway_match.map_doorway);
         }
+
+        map
     }
 }
 
@@ -276,139 +78,6 @@ impl Default for Voxel {
 pub struct Room {
     doorways: Vec<Doorway>,
     voxels: Brick<Voxel>,
-}
-
-fn blocks_to_blobs(blocks: &[IVec3]) -> Vec<Vec<IVec3>> {
-    use petgraph::unionfind::UnionFind;
-    let mut blocks_map = HashMap::<IVec3, usize>::new();
-    for (i, pos) in blocks.iter().enumerate() {
-        blocks_map.insert(pos.clone(), i);
-    }
-    let mut blobs = UnionFind::<usize>::new(blocks.len());
-    for (i, pos) in blocks.iter().enumerate() {
-        let mut lambda = |neighboring_pos: IVec3| {
-            if let Some(j) = blocks_map.get(&neighboring_pos) {
-                blobs.union(i, *j);
-            }
-        };
-        lambda(IVec3::new(pos.x + 1, pos.y, pos.z));
-        lambda(IVec3::new(pos.x - 1, pos.y, pos.z));
-        lambda(IVec3::new(pos.x, pos.y + 1, pos.z));
-        lambda(IVec3::new(pos.x, pos.y - 1, pos.z));
-        lambda(IVec3::new(pos.x, pos.y, pos.z + 1));
-        lambda(IVec3::new(pos.x, pos.y, pos.z - 1));
-    }
-    let mut rep_to_class = HashMap::<usize, HashSet<IVec3>>::new();
-    for i in 0 .. blocks.len() {
-        let rep = blobs.find_mut(i);
-        if let Some(set) = rep_to_class.get_mut(&rep) {
-            set.insert(blocks[i]);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(blocks[i]);
-            rep_to_class.insert(rep, set);
-        }
-    }
-    let mut result = Vec::new();
-    for (_, class) in rep_to_class {
-        let mut class_vec = class.iter().cloned().collect::<Vec<IVec3>>();
-        result.push(class_vec);
-    }
-    result
-}
-
-fn positions_to_aabb(positions: &[IVec3]) -> AABB {
-    let mut minimum = *positions.iter().nth(0).unwrap();
-    let mut maximum = *positions.iter().nth(0).unwrap();
-    for pos in positions {
-        minimum = minimum.min(pos.clone());
-        maximum = maximum.max(pos.clone());
-    }
-    AABB { minimum, maximum }
-}
-
-fn blocks_to_aabbs(blocks: &[IVec3]) -> Vec<AABB> {
-    let blobs = blocks_to_blobs(blocks);
-    let mut result = Vec::<AABB>::new();
-    for blob in blobs {
-        let aabb = positions_to_aabb(&blob);
-        assert!((aabb.dimensions().0 == 1)
-                || (aabb.dimensions().1 == 1)
-                || (aabb.dimensions().2 == 1));
-        result.push(aabb);
-    }
-    result
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum Erior { Interior, Wall, Exterior }
-
-impl Default for Erior {
-    fn default() -> Erior {
-        Erior::Interior
-    }
-}
-
-fn compute_erior(walls: &[IVec3]) -> Brick<Erior> {
-    let aabb = positions_to_aabb(walls);
-    let mut result =
-        Brick::new(&aabb.minimum, &aabb.dimensions());
-    for wall in walls {
-        *result.index_mut(wall) = Erior::Wall;
-    }
-    let mut not_walls = Vec::new();
-    for pos in aabb.iter() {
-        if *result.index(&pos) != Erior::Wall {
-            not_walls.push(pos);
-        }
-    }
-    let blobs = blocks_to_blobs(&not_walls);
-    for blob in blobs {
-        let mut is_exterior_blob = false;
-        for pos in &blob {
-            is_exterior_blob = is_exterior_blob
-                || pos.x == aabb.minimum.x || pos.x == aabb.maximum.x
-                || pos.y == aabb.minimum.y || pos.y == aabb.maximum.y
-                || pos.z == aabb.minimum.z || pos.z == aabb.maximum.z;
-            if is_exterior_blob {
-                break;
-            }
-        }
-        if is_exterior_blob {
-            for pos in &blob {
-                *result.index_mut(pos) = Erior::Exterior;
-            }
-        }
-    }
-    result
-}
-
-fn compute_doorway(
-    mode: &DoorwayMode, aabb: &AABB, erior: &Brick<Erior>
-) -> Doorway {
-    let possible_normals = [
-        IVec3::new(1, 0, 0),
-        IVec3::new(-1, 0, 0),
-        IVec3::new(0, 1, 0),
-        IVec3::new(0, -1, 0),
-        IVec3::new(0, 0, 1),
-        IVec3::new(0, 0, -1),
-    ];
-    let mut compatible_normals = Vec::new();
-    'outer: for possible_normal in possible_normals {
-        for pos in aabb.iter() {
-            let shifted = pos + possible_normal;
-            if erior.bounding_box.contains(&shifted) {
-                if erior.index(&shifted) != &Erior::Exterior {
-                    continue 'outer;
-                }
-            }
-        }
-        compatible_normals.push(possible_normal);
-    }
-    assert_eq!(compatible_normals.len(), 1);
-    let normal = compatible_normals[0];
-    Doorway { mode: *mode, normal, bounding_box: aabb.clone() }
 }
 
 impl Room {
@@ -475,7 +144,7 @@ impl Room {
         watertight_blocks.append(&mut entrance_blocks.clone());
         watertight_blocks.append(&mut exit_blocks.clone());
 
-        let erior = compute_erior(&watertight_blocks);
+        let erior = Erior::from_walls(&watertight_blocks);
 
         let mut doorways = Vec::new();
         let entrance_aabbs = blocks_to_aabbs(&entrance_blocks);
@@ -671,106 +340,30 @@ fn match_room_against_doorway(
     result
 }
 
-pub fn room_gluing(starting_room: &Room, size: usize, rooms: &[Room]) -> Map {
-    let mut map = Map {
-        room_boxes: vec![starting_room.voxels.bounding_box.clone()],
-        open_doorways: starting_room.doorways.iter().cloned().collect(),
-        voxels: starting_room.voxels.clone(),
-    };
-
-    let mut rooms_with_rotations = HashSet::new();
-    for room in rooms {
-        for rotated_room in room.all_y_rotations() {
-            rooms_with_rotations.insert(rotated_room);
-        }
-    }
-
-    let mut rng = rand::thread_rng();
-    for iter in 0 .. size {
-        println!("Room gluing iteration {}", iter);
-        let mut candidates = Vec::<(DoorwayMatch, &Room)>::new();
-        for open_doorway in &map.open_doorways {
-            for room in &rooms_with_rotations {
-                for m in match_room_against_doorway(&map, room, open_doorway) {
-                    candidates.push((m, room));
+fn compute_doorway(
+    mode: &DoorwayMode, aabb: &AABB, erior: &Brick<Erior>
+) -> Doorway {
+    let possible_normals = [
+        IVec3::new(1, 0, 0),
+        IVec3::new(-1, 0, 0),
+        IVec3::new(0, 1, 0),
+        IVec3::new(0, -1, 0),
+        IVec3::new(0, 0, 1),
+        IVec3::new(0, 0, -1),
+    ];
+    let mut compatible_normals = Vec::new();
+    'outer: for possible_normal in possible_normals {
+        for pos in aabb.iter() {
+            let shifted = pos + possible_normal;
+            if erior.bounding_box.contains(&shifted) {
+                if erior.index(&shifted) != &Erior::Exterior {
+                    continue 'outer;
                 }
             }
         }
-        if candidates.is_empty() {
-            println!("Room gluing had no candidates, ending generation");
-            break;
-        }
-        use rand::distributions::Distribution;
-        let dist = rand::distributions::Uniform::from(0 .. candidates.len());
-        let (ref doorway_match, room) = candidates[dist.sample(&mut rng)];
-        let mut room_voxels = room.voxels.clone();
-        room_voxels.shift(&doorway_match.offset);
-        map.room_boxes.push(room_voxels.bounding_box.clone());
-        for doorway in &room.doorways {
-            if doorway != &doorway_match.room_doorway {
-                map.open_doorways.insert(doorway.clone());
-            }
-        }
-        map.voxels.blit(&room_voxels);
-        map.open_doorways.remove(&doorway_match.map_doorway);
+        compatible_normals.push(possible_normal);
     }
-
-    map
-}
-
-#[derive(Clone, Copy)]
-pub struct IMat3 {
-    pub columns: [IVec3; 3],
-}
-
-impl IMat3 {
-    fn mul_vec3(&self, rhs: &IVec3) -> IVec3 {
-        let x = IVec3::new(
-            self.columns[0].x, self.columns[1].x, self.columns[2].x
-        ).dot(*rhs);
-        let y = IVec3::new(
-            self.columns[0].y, self.columns[1].y, self.columns[2].y
-        ).dot(*rhs);
-        let z = IVec3::new(
-            self.columns[0].z, self.columns[1].z, self.columns[2].z
-        ).dot(*rhs);
-        IVec3::new(x, y, z)
-    }
-
-    fn mul_mat3(&self, rhs: &IMat3) -> IMat3 {
-        IMat3 {
-            columns: [
-                self.mul_vec3(&rhs.columns[0]),
-                self.mul_vec3(&rhs.columns[1]),
-                self.mul_vec3(&rhs.columns[2]),
-            ],
-        }
-    }
-
-    fn inverse(&self) -> Self {
-        let mut tmp0 = self.columns[1].cross(self.columns[2]);
-        let mut tmp1 = self.columns[2].cross(self.columns[0]);
-        let mut tmp2 = self.columns[0].cross(self.columns[1]);
-        let det = self.columns[2].dot(tmp2);
-        assert_ne!(det, 0);
-        assert_eq!(tmp0.x % det, 0);
-        assert_eq!(tmp0.y % det, 0);
-        assert_eq!(tmp0.z % det, 0);
-        assert_eq!(tmp1.x % det, 0);
-        assert_eq!(tmp1.y % det, 0);
-        assert_eq!(tmp1.z % det, 0);
-        assert_eq!(tmp2.x % det, 0);
-        assert_eq!(tmp2.y % det, 0);
-        assert_eq!(tmp2.z % det, 0);
-        tmp0 /= det;
-        tmp1 /= det;
-        tmp2 /= det;
-        IMat3 {
-            columns: [
-                IVec3::new(tmp0.x, tmp1.x, tmp2.x),
-                IVec3::new(tmp0.y, tmp1.y, tmp2.y),
-                IVec3::new(tmp0.z, tmp1.z, tmp2.z),
-            ],
-        }
-    }
+    assert_eq!(compatible_normals.len(), 1);
+    let normal = compatible_normals[0];
+    Doorway { mode: *mode, normal, bounding_box: aabb.clone() }
 }

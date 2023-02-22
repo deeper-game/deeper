@@ -151,10 +151,11 @@ fn spawn_level(
 ) {
     let room1 = crate::level::Room::parse(&rooms.get(&room_assets.room1).unwrap().contents);
     let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
-    let map = crate::level::room_gluing(&room1.clone(), 0, &[room1, room2]);
+    let map = crate::level::Map::room_gluing(&room1.clone(), 0, &[room1, room2]);
 
     for pos in map.voxels.bounding_box.iter() {
-        if map.voxels.index(&pos).shape == crate::level::VoxelShape::Solid {
+        if map.voxels.index(&pos).shape
+            == crate::level::voxel::VoxelShape::Solid {
             commands.spawn(PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
                 material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
