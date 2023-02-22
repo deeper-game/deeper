@@ -13,7 +13,6 @@ use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInsp
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
-use crate::level::Level;
 use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 use crate::projectile::Projectile;
