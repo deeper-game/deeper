@@ -268,6 +268,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-scene-hook"
+version = "5.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841858878006486ed40f670b016973c852ba27038a122c2cb4cc02febea5ac64"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_animation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1454,6 +1463,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy-inspector-egui",
+ "bevy-scene-hook",
  "bevy_asset_loader",
  "bevy_dylib",
  "bevy_rapier3d",

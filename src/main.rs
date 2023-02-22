@@ -63,6 +63,7 @@ pub fn main() {
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
+        .add_plugin(bevy_scene_hook::HookPlugin)
         .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
         .add_plugin(crate::outline::OutlinePlugin)

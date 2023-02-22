@@ -9,6 +9,7 @@ bevy_asset_loader = "*"
 bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy_sprite3d = "*"
 bevy-inspector-egui = "*"
+bevy-scene-hook = "*"
 bitvec = "*"
 wgpu = "0.14.*"
 wgpu-types = "0.14.*"
