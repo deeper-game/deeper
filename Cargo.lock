@@ -1478,6 +1478,7 @@ dependencies = [
  "rand",
  "thiserror",
  "unicode-segmentation",
+ "uuid",
  "wgpu",
  "wgpu-types",
 ]

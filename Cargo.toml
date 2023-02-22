@@ -24,6 +24,7 @@ thiserror = "*"
 num-traits = "*"
 ab_glyph = "*"
 noisy_bevy = "*"
+uuid = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bevy_dylib = "*"

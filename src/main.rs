@@ -116,6 +116,7 @@ fn setup(
             walk_speed: 5.0,
             run_speed: 8.0,
             key_fly: KeyCode::Grave,
+            enable_input: false,
             ..default()
         },
         Inventory::new(),
