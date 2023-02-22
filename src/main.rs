@@ -6,7 +6,9 @@
 
 use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
+use num_traits::float::FloatConst;
 use bevy::prelude::*;
+use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
@@ -82,6 +84,7 @@ pub fn main() {
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)
+        .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
@@ -93,6 +96,9 @@ pub fn main() {
 
 fn setup(
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     commands.spawn(ImportableShader::new("animation"));
 
@@ -124,20 +130,120 @@ fn setup(
     ));
 
     use bevy::core_pipeline::bloom::BloomSettings;
+    use bevy::render::view::RenderLayers;
+    use bevy::core_pipeline::clear_color::ClearColorConfig;
+
+    let post_processing_pass_layer = RenderLayers::layer((RenderLayers::TOTAL_LAYERS - 1) as u8);
+
+    let render_target = images.add(make_camera_image(1.0));
+
+    let mut camera = Camera::default();
+    #[cfg(target_arch = "x86_64")]
+    {
+        camera.hdr = true;
+    }
 
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(10.0, 10.0, 10.0),
-            #[cfg(target_arch = "x86_64")]
-            camera: Camera {
-                hdr: true,
+            camera_3d: Camera3d {
+                clear_color: ClearColorConfig::Custom(Color::WHITE),
                 ..default()
+            },
+            transform: Transform::from_xyz(10.0, 10.0, 10.0),
+            camera: Camera {
+                target: bevy::render::camera::RenderTarget::Image(render_target.clone()),
+                ..camera.clone()
             },
             ..default()
         },
         RenderPlayer(0),
         BloomSettings::default(),
+        UiCameraConfig { show_ui: false },
     ));
+
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Plane { size: 1.0 })),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(render_target.clone()),
+                unlit: true,
+                cull_mode: None,
+                ..default()
+            }),
+            transform: Transform::IDENTITY
+                .with_rotation(Quat::from_rotation_x(f32::PI() / 2.0))
+                .with_translation(Vec3::new(300.0, 300.0, 299.0))
+                .with_scale(Vec3::new(1.0, 1.0, -1.0))
+                ,
+            ..default()
+        },
+        CameraTexture(render_target),
+        post_processing_pass_layer,
+    ));
+
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(300.0, 300.0, 300.0),
+            camera: Camera {
+                priority: 1,
+                ..camera.clone()
+            },
+            ..default()
+        },
+        post_processing_pass_layer,
+    ));
+}
+
+#[derive(Component)]
+struct CameraTexture(Handle<Image>);
+
+fn make_camera_image(aspect_ratio: f32) -> Image {
+    use bevy::render::camera::Camera;
+    use bevy::render::render_resource::*;
+    use bevy::render::texture::ImageSampler;
+
+    let width = 512;
+    let height = (width as f32 / aspect_ratio).round() as u32;
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size: Extent3d { width, height, ..default() },
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Bgra8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+        },
+        sampler_descriptor: ImageSampler::nearest(),
+        ..default()
+    };
+
+    image.resize(image.texture_descriptor.size);
+
+    image
+}
+
+fn resize_camera_texture(
+    mut resize_reader: EventReader<WindowResized>,
+    mut images: ResMut<Assets<Image>>,
+    mut camera_textures: Query<(&mut Transform, &CameraTexture)>,
+) {
+    let mut last_event = None;
+    for e in resize_reader.iter() {
+        last_event = Some(e);
+    }
+    if let Some(window_resized) = last_event {
+        for (mut transform, camera_texture) in camera_textures.iter_mut() {
+            let CameraTexture(handle) = camera_texture;
+            let aspect_ratio = window_resized.width / window_resized.height;
+            transform.scale.x = aspect_ratio;
+            *images.get_mut(&handle).unwrap() = make_camera_image(aspect_ratio);
+        }
+    }
 }
 
 #[derive(Component)]
