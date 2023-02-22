@@ -63,7 +63,8 @@ impl Map {
             map.room_boxes.push(room_voxels.bounding_box.clone());
             for doorway in &room.doorways {
                 if doorway != &doorway_match.room_doorway {
-                    map.open_doorways.insert(doorway.clone());
+                    let shifted_doorway = doorway.shift(&doorway_match.offset);
+                    map.open_doorways.insert(shifted_doorway);
                 }
             }
             map.voxels.blit(&room_voxels);
@@ -192,9 +193,9 @@ impl Room {
     pub fn all_y_rotations(&self) -> Vec<Room> {
         let y = IMat3 {
             columns: [
-                IVec3::new(0, 0, 1),
+                IVec3::new(0, 0, -1),
                 IVec3::new(0, 1, 0),
-                IVec3::new(-1, 0, 0),
+                IVec3::new(1, 0, 0),
             ],
         };
         let rotations = [

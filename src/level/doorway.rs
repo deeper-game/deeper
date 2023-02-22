@@ -16,6 +16,12 @@ impl Doorway {
         result.bounding_box = result.bounding_box.rotate(matrix);
         result
     }
+
+    pub fn shift(&self, offset: &IVec3) -> Doorway {
+        let mut result = self.clone();
+        result.bounding_box = result.bounding_box.shift(offset);
+        result
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
