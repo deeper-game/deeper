@@ -7,7 +7,6 @@
 use std::f32::consts::{PI, TAU};
 use std::collections::HashMap;
 use bevy::prelude::*;
-use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
@@ -84,7 +83,6 @@ pub fn main() {
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)
-        .add_system(manage_cursor)
         .add_system(spawn_projectiles)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
@@ -249,28 +247,5 @@ fn spawn_projectiles(
                 transform: camera.compute_transform(),
                 ..default()
             }));
-    }
-}
-
-pub fn manage_cursor(
-    mut windows: ResMut<Windows>,
-    btn: Res<Input<MouseButton>>,
-    key: Res<Input<KeyCode>>,
-    mut controllers: Query<&mut FpsController>,
-) {
-    let window = windows.get_primary_mut().unwrap();
-    if btn.just_pressed(MouseButton::Left) {
-        window.set_cursor_grab_mode(CursorGrabMode::Locked);
-        window.set_cursor_visibility(false);
-        for mut controller in &mut controllers {
-            controller.enable_input = true;
-        }
-    }
-    if key.just_pressed(KeyCode::Escape) {
-        window.set_cursor_grab_mode(CursorGrabMode::None);
-        window.set_cursor_visibility(true);
-        for mut controller in &mut controllers {
-            controller.enable_input = false;
-        }
     }
 }

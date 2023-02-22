@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::window::CursorGrabMode;
+use crate::fps_controller::FpsController;
 use crate::assets::{GameState, ImageAssets};
 
 pub struct UiPlugin;
@@ -6,6 +8,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_system(manage_cursor)
             .add_system_set(SystemSet::on_enter(GameState::Ready)
                             .with_system(show_crosshair))
             .add_system_set(SystemSet::on_enter(GameState::Ready)
@@ -104,4 +107,27 @@ pub fn show_inventory(
                 }
             });
         });
+}
+
+pub fn manage_cursor(
+    mut windows: ResMut<Windows>,
+    btn: Res<Input<MouseButton>>,
+    key: Res<Input<KeyCode>>,
+    mut controllers: Query<&mut FpsController>,
+) {
+    let window = windows.get_primary_mut().unwrap();
+    if btn.just_pressed(MouseButton::Left) {
+        window.set_cursor_grab_mode(CursorGrabMode::Locked);
+        window.set_cursor_visibility(false);
+        for mut controller in &mut controllers {
+            controller.enable_input = true;
+        }
+    }
+    if key.just_pressed(KeyCode::Escape) {
+        window.set_cursor_grab_mode(CursorGrabMode::None);
+        window.set_cursor_visibility(true);
+        for mut controller in &mut controllers {
+            controller.enable_input = false;
+        }
+    }
 }
