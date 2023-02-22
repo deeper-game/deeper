@@ -85,6 +85,8 @@ pub fn main() {
         .add_system(spawn_projectiles)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
+        .add_system_set(SystemSet::on_update(GameState::Ready)
+                        .with_system(reload_level))
         //.add_system(movement)
         .run();
 }
@@ -138,6 +140,102 @@ fn setup(
     ));
 }
 
+#[derive(Component)]
+struct IsVoxel;
+
+fn spawn_voxels(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    start_room: &crate::level::Room,
+    rooms: &[crate::level::Room],
+) {
+    let pos_to_transform = |pos: bevy::math::IVec3| -> Transform {
+        // Annoying hack because camera position is weird
+        Transform::from_xyz(pos.x as f32 - 3.0,
+                            pos.y as f32 - 0.2,
+                            pos.z as f32 - 3.0)
+    };
+    let map = crate::level::Map::room_gluing(start_room, 20, rooms);
+    let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let brown = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
+    for pos in map.voxels.bounding_box.iter() {
+        if map.voxels.index(&pos).shape
+            == crate::level::voxel::VoxelShape::Solid {
+            commands.spawn(PbrBundle {
+                mesh: cube.clone(),
+                material: brown.clone(),
+                transform: pos_to_transform(pos),
+                ..default()
+            })
+                .insert(IsVoxel)
+                .insert(Collider::cuboid(0.5, 0.5, 0.5));
+        }
+    }
+    // Useful for debugging map generation
+    if true {
+        let room_box_corner = meshes.add(Mesh::from(shape::Cube { size: 1.75 }));
+        let room_box_material = materials.add(Color::rgba(0.5, 0.0, 0.0, 0.3).into());
+        for room_box in map.room_boxes {
+            commands.spawn(PbrBundle {
+                mesh: room_box_corner.clone(),
+                material: room_box_material.clone(),
+                transform: pos_to_transform(room_box.minimum),
+                ..default()
+            })
+                .insert(IsVoxel);
+            commands.spawn(PbrBundle {
+                mesh: room_box_corner.clone(),
+                material: room_box_material.clone(),
+                transform: pos_to_transform(room_box.maximum),
+                ..default()
+            })
+                .insert(IsVoxel);
+        }
+        let red = materials.add(Color::rgba(1.0, 0.0, 0.0, 0.5).into());
+        let green = materials.add(Color::rgba(0.0, 1.0, 0.0, 0.5).into());
+        let magenta = materials.add(Color::rgba(1.0, 0.0, 1.0, 0.5).into());
+        for doorway in map.open_doorways {
+            for pos in doorway.bounding_box.iter() {
+                use crate::level::doorway::DoorwayMode;
+                commands.spawn(PbrBundle {
+                    mesh: cube.clone(),
+                    material: match doorway.mode {
+                        DoorwayMode::Neither => magenta.clone(),
+                        DoorwayMode::Entrance => green.clone(),
+                        DoorwayMode::Exit => red.clone(),
+                    },
+                    transform: pos_to_transform(pos),
+                    ..default()
+                })
+                    .insert(IsVoxel);
+            }
+        }
+    }
+}
+
+fn reload_level(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    rooms: Res<Assets<crate::room_loader::TextFile>>,
+    room_assets: Res<crate::assets::RoomAssets>,
+    keyboard: Res<Input<KeyCode>>,
+    preexisting_voxels: Query<Entity, With<IsVoxel>>,
+) {
+    if keyboard.just_pressed(KeyCode::R) {
+        for entity in preexisting_voxels.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        let room1 = crate::level::Room::parse(&rooms.get(&room_assets.room1).unwrap().contents);
+        let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
+        let rooms = [room1.clone(), room2.clone()];
+
+        spawn_voxels(&mut commands, &mut meshes, &mut materials, &room1, &rooms);
+    }
+}
+
 fn spawn_level(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -145,29 +243,15 @@ fn spawn_level(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    mut rooms: ResMut<Assets<crate::room_loader::TextFile>>,
+    rooms: Res<Assets<crate::room_loader::TextFile>>,
     image_assets: Res<crate::assets::ImageAssets>,
     room_assets: Res<crate::assets::RoomAssets>,
 ) {
     let room1 = crate::level::Room::parse(&rooms.get(&room_assets.room1).unwrap().contents);
     let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
-    let map = crate::level::Map::room_gluing(&room1.clone(), 0, &[room1, room2]);
+    let rooms = [room1.clone(), room2.clone()];
 
-    for pos in map.voxels.bounding_box.iter() {
-        if map.voxels.index(&pos).shape
-            == crate::level::voxel::VoxelShape::Solid {
-            commands.spawn(PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                // Annoying hack because camera position is weird
-                transform: Transform::from_xyz(pos.x as f32 - 3.0,
-                                               pos.y as f32 - 0.2,
-                                               pos.z as f32 - 3.0),
-                ..default()
-            })
-                .insert(Collider::cuboid(0.5, 0.5, 0.5));
-        }
-    }
+    spawn_voxels(&mut commands, &mut meshes, &mut materials, &room1, &rooms);
 
     spawn_enemy(&mut commands, &mut meshes, &mut materials,
                 Vec3 { x: 1.0, y: 0.75, z: 1.5 });
