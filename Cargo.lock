@@ -1466,6 +1466,7 @@ dependencies = [
  "bevy-scene-hook",
  "bevy_asset_loader",
  "bevy_dylib",
+ "bevy_egui",
  "bevy_rapier3d",
  "bevy_sprite3d",
  "bitvec",

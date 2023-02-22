@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = "*"
 bevy_asset_loader = "*"
+bevy_egui = "*"
 bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy_sprite3d = "*"
 bevy-inspector-egui = "*"
