@@ -130,6 +130,7 @@ fn setup(
     ));
 
     use bevy::core_pipeline::bloom::BloomSettings;
+    use bevy::render::camera::RenderTarget;
     use bevy::render::view::RenderLayers;
     use bevy::core_pipeline::clear_color::ClearColorConfig;
 
@@ -151,7 +152,7 @@ fn setup(
             },
             transform: Transform::from_xyz(10.0, 10.0, 10.0),
             camera: Camera {
-                target: bevy::render::camera::RenderTarget::Image(render_target.clone()),
+                target: RenderTarget::Image(render_target.clone()),
                 ..camera.clone()
             },
             ..default()
@@ -230,18 +231,21 @@ fn make_camera_image(aspect_ratio: f32) -> Image {
 fn resize_camera_texture(
     mut resize_reader: EventReader<WindowResized>,
     mut images: ResMut<Assets<Image>>,
-    mut camera_textures: Query<(&mut Transform, &CameraTexture)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut camera_textures: Query<(&mut Transform, &Handle<StandardMaterial>, &CameraTexture)>,
 ) {
     let mut last_event = None;
     for e in resize_reader.iter() {
         last_event = Some(e);
     }
     if let Some(window_resized) = last_event {
-        for (mut transform, camera_texture) in camera_textures.iter_mut() {
+        for (mut transform, material, camera_texture) in camera_textures.iter_mut() {
             let CameraTexture(handle) = camera_texture;
             let aspect_ratio = window_resized.width / window_resized.height;
             transform.scale.x = aspect_ratio;
             *images.get_mut(&handle).unwrap() = make_camera_image(aspect_ratio);
+            materials.get_mut(&material).unwrap().base_color_texture =
+                Some(handle.clone());
         }
     }
 }
