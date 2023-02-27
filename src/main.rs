@@ -242,7 +242,7 @@ fn make_camera_image(aspect_ratio: f32) -> Image {
     use bevy::render::render_resource::*;
     use bevy::render::texture::ImageSampler;
 
-    let width = 512;
+    let width = 1024;
     let height = (width as f32 / aspect_ratio).round() as u32;
 
     // This is the texture that will be rendered to.
@@ -295,7 +295,7 @@ fn spawn_voxels(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    texture_pack: &Handle<Image>,
+    texture_pack: &Option<Handle<Image>>,
     start_room: &crate::level::Room,
     rooms: &[crate::level::Room],
 ) {
@@ -351,7 +351,7 @@ fn spawn_voxels(
     let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
     let brown1 = materials.add(StandardMaterial {
         base_color: Color::rgb(0.8, 0.7, 0.6),
-        base_color_texture: Some(texture_pack.clone()),
+        base_color_texture: texture_pack.clone(),
         //emissive: Color::rgb(0.03, 0.03, 0.03),
         ..default()
     });
@@ -374,7 +374,7 @@ fn spawn_voxels(
     ));
 
     // Useful for debugging map generation
-    if true {
+    if false {
         let room_box_corner = meshes.add(Mesh::from(shape::Cube { size: 1.75 }));
         let room_box_material = materials.add(Color::rgba(0.5, 0.0, 0.0, 0.3).into());
         for room_box in map.room_boxes {
@@ -435,7 +435,7 @@ fn reload_level(
         let rooms = [room1.clone(), room2.clone()];
 
         spawn_voxels(&mut commands, &mut meshes, &mut materials,
-                     &image_assets.block_debug, &room1, &rooms);
+                     &None, &room1, &rooms);
     }
 }
 
@@ -455,7 +455,7 @@ fn spawn_level(
     let rooms = [room1.clone(), room2.clone()];
 
     spawn_voxels(&mut commands, &mut meshes, &mut materials,
-                 &image_assets.block_debug, &room1, &rooms);
+                 &None, &room1, &rooms);
 
     spawn_enemy(&mut commands, &mut meshes, &mut materials,
                 Vec3 { x: 1.0, y: 0.75, z: 1.5 });

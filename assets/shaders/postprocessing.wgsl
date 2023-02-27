@@ -74,5 +74,5 @@ fn fragment(
     //    clamp(hsba.g, 0.0, 1.0),
     //    clamp(hsba.b, 0.0, 1.0),
     //    hsba.a);
-    return hsba2rgba(hsba);
+    return color; // hsba2rgba(hsba);
 }
