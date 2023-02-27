@@ -435,7 +435,7 @@ fn reload_level(
         let rooms = [room1.clone(), room2.clone()];
 
         spawn_voxels(&mut commands, &mut meshes, &mut materials,
-                     &None, &room1, &rooms);
+                     &Some(image_assets.stone.clone()), &room1, &rooms);
     }
 }
 
@@ -455,7 +455,7 @@ fn spawn_level(
     let rooms = [room1.clone(), room2.clone()];
 
     spawn_voxels(&mut commands, &mut meshes, &mut materials,
-                 &None, &room1, &rooms);
+                 &Some(image_assets.stone.clone()), &room1, &rooms);
 
     spawn_enemy(&mut commands, &mut meshes, &mut materials,
                 Vec3 { x: 1.0, y: 0.75, z: 1.5 });
@@ -509,11 +509,12 @@ fn spawn_level(
 
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
-            intensity: 400.0,
+            intensity: 16000.0,
+            range: 500.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
+        transform: Transform::from_xyz(4.0, 30.0, 4.0),
         ..default()
     });
 }

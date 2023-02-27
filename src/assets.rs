@@ -30,6 +30,8 @@ pub struct ImageAssets {
     pub crosshair: Handle<Image>,
     #[asset(path = "coin.png")]
     pub coin: Handle<Image>,
+    #[asset(path = "stone.png")]
+    pub stone: Handle<Image>,
     #[asset(path = "block-debug.png")]
     pub block_debug: Handle<Image>,
 }
