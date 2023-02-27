@@ -17,6 +17,7 @@ use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
 use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
+use crate::postprocessing::PostprocessingMaterial;
 use crate::projectile::Projectile;
 use crate::enemy::spawn_enemy;
 use crate::fps_controller::{
@@ -24,6 +25,7 @@ use crate::fps_controller::{
 };
 use crate::importable_shaders::ImportableShader;
 
+pub mod postprocessing;
 pub mod outline;
 pub mod terminal_key;
 pub mod key_translator;
@@ -65,6 +67,7 @@ pub fn main() {
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(bevy_scene_hook::HookPlugin)
         .add_plugin(bevy_egui::EguiPlugin)
+        .add_plugin(crate::postprocessing::PostprocessingPlugin)
         .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
         .add_plugin(crate::outline::OutlinePlugin)
@@ -86,6 +89,7 @@ pub fn main() {
         .add_startup_system(setup)
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
+        .add_system(toggle_tonemapping)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
         .add_system_set(SystemSet::on_update(GameState::Ready)
@@ -97,9 +101,15 @@ pub fn main() {
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut pp_materials: ResMut<Assets<PostprocessingMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    mut windows: ResMut<Windows>,
+    asset_server: Res<AssetServer>,
 ) {
+    for mut window in windows.iter_mut() {
+        window.set_present_mode(bevy::window::PresentMode::AutoNoVsync);
+    }
+
     commands.spawn(ImportableShader::new("animation"));
 
     commands.spawn((
@@ -133,6 +143,7 @@ fn setup(
     use bevy::render::camera::RenderTarget;
     use bevy::render::view::RenderLayers;
     use bevy::core_pipeline::clear_color::ClearColorConfig;
+    use bevy::core_pipeline::tonemapping::Tonemapping;
 
     let post_processing_pass_layer = RenderLayers::layer((RenderLayers::TOTAL_LAYERS - 1) as u8);
 
@@ -146,15 +157,16 @@ fn setup(
 
     commands.spawn((
         Camera3dBundle {
-            camera_3d: Camera3d {
-                clear_color: ClearColorConfig::Custom(Color::WHITE),
-                ..default()
-            },
+            // camera_3d: Camera3d {
+            //     clear_color: ClearColorConfig::Custom(Color::WHITE),
+            //     ..default()
+            // },
             transform: Transform::from_xyz(10.0, 10.0, 10.0),
             camera: Camera {
                 target: RenderTarget::Image(render_target.clone()),
                 ..camera.clone()
             },
+            tonemapping: Tonemapping::Enabled { deband_dither: true },
             ..default()
         },
         RenderPlayer(0),
@@ -162,19 +174,20 @@ fn setup(
         UiCameraConfig { show_ui: false },
     ));
 
+    let palette: Handle<Image> = asset_server.load("palette.png");
+
     commands.spawn((
-        PbrBundle {
+        MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Plane { size: 1.0 })),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(render_target.clone()),
-                unlit: true,
-                cull_mode: None,
+            material: pp_materials.add(PostprocessingMaterial {
+                input: render_target.clone(),
+                palette: palette.clone(),
                 ..default()
             }),
             transform: Transform::IDENTITY
                 .with_rotation(Quat::from_rotation_x(f32::PI() / 2.0))
                 .with_translation(Vec3::new(300.0, 300.0, 299.0))
-                .with_scale(Vec3::new(1.0, 1.0, -1.0))
+                .with_scale(Vec3::new(1.0, 1.0, 1.0))
                 ,
             ..default()
         },
@@ -193,6 +206,32 @@ fn setup(
         },
         post_processing_pass_layer,
     ));
+}
+
+use bevy::core_pipeline::tonemapping::Tonemapping;
+
+fn toggle_tonemapping(
+    keyboard: Res<Input<KeyCode>>,
+    mut query: Query<&mut Tonemapping, With<RenderPlayer>>,
+) {
+    if keyboard.just_pressed(KeyCode::T) {
+        for mut tonemapping in query.iter_mut() {
+            *tonemapping = match *tonemapping {
+                Tonemapping::Disabled => {
+                    println!("Tonemapping without deband");
+                    Tonemapping::Enabled { deband_dither: false }
+                },
+                Tonemapping::Enabled { deband_dither: false } => {
+                    println!("Tonemapping with deband");
+                    Tonemapping::Enabled { deband_dither: true }
+                },
+                Tonemapping::Enabled { deband_dither: true } => {
+                    println!("Tonemapping disabled");
+                    Tonemapping::Disabled
+                },
+            }
+        }
+    }
 }
 
 #[derive(Component)]
@@ -231,21 +270,20 @@ fn make_camera_image(aspect_ratio: f32) -> Image {
 fn resize_camera_texture(
     mut resize_reader: EventReader<WindowResized>,
     mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut camera_textures: Query<(&mut Transform, &Handle<StandardMaterial>, &CameraTexture)>,
+    mut pp_materials: ResMut<Assets<PostprocessingMaterial>>,
+    mut camera_textures: Query<(&mut Transform, &Handle<PostprocessingMaterial>, &CameraTexture)>,
 ) {
     let mut last_event = None;
     for e in resize_reader.iter() {
         last_event = Some(e);
     }
     if let Some(window_resized) = last_event {
-        for (mut transform, material, camera_texture) in camera_textures.iter_mut() {
+        for (mut transform, mat, camera_texture) in camera_textures.iter_mut() {
             let CameraTexture(handle) = camera_texture;
             let aspect_ratio = window_resized.width / window_resized.height;
             transform.scale.x = aspect_ratio;
             *images.get_mut(&handle).unwrap() = make_camera_image(aspect_ratio);
-            materials.get_mut(&material).unwrap().base_color_texture =
-                Some(handle.clone());
+            pp_materials.get_mut(&mat).unwrap().input = handle.clone();
         }
     }
 }
