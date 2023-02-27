@@ -127,6 +127,11 @@ impl Map {
             for doorway in &room.doorways {
                 if doorway != &doorway_match.room_doorway {
                     let shifted_doorway = doorway.shift(&doorway_match.offset);
+                    // if let Some(sliced) = map.voxels.slice(&shifted_doorway.shift(&doorway.normal).bounding_box) {
+                    //     if sliced.contents.iter().all(|v| v == &Voxel::default()) {
+                    //         map.open_doorways.insert(shifted_doorway);
+                    //     }
+                    // }
                     map.open_doorways.insert(shifted_doorway);
                 }
             }
@@ -532,19 +537,17 @@ fn match_room_against_doorway(
             continue;
         }
 
-        if !DoorwayMode::compatible(&room_doorway.mode, &map_doorway.mode) {
-            continue;
-        }
+        // TODO: enable compatibility checking
+        // if !DoorwayMode::compatible(&room_doorway.mode, &map_doorway.mode) {
+        //     continue;
+        // }
 
         if room_doorway.normal != -map_doorway.normal {
             continue;
         }
 
         let offset: IVec3 =
-            //map.voxels.bounding_box.minimum
-            map_doorway_aabb.minimum
-            //- room.voxels.bounding_box.minimum
-            - room_doorway.bounding_box.minimum;
+            map_doorway_aabb.minimum - room_doorway.bounding_box.minimum;
         let mut shifted_room = room.voxels.clone();
         shifted_room.shift(&offset);
 

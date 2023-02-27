@@ -1,6 +1,6 @@
 use bevy::math::IVec3;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IMat3 {
     pub columns: [IVec3; 3],
 }
