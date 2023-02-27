@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use bevy::math::IVec3;
+use bevy::utils::FloatOrd;
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::level::aabb::AABB;
@@ -7,7 +9,7 @@ use crate::level::brick::Brick;
 use crate::level::doorway::{Doorway, DoorwayMode};
 use crate::level::erior::{Erior, blocks_to_aabbs};
 use crate::level::integer_matrix::IMat3;
-use crate::level::voxel::{Voxel, CardinalDir, VoxelShape, Texture, Style};
+use crate::level::voxel::{Voxel, CardinalDir, Direction, VoxelShape, Texture, Style};
 
 pub mod aabb;
 pub mod brick;
@@ -16,11 +18,71 @@ pub mod erior;
 pub mod integer_matrix;
 pub mod voxel;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Block {
+    pub texture: Texture,
+    pub style: Style,
+    pub orientation: CardinalDir,
+}
+
+impl From<&Voxel> for Block {
+    fn from(voxel: &Voxel) -> Block {
+        Block {
+            texture: voxel.texture,
+            style: voxel.style,
+            orientation: voxel.orientation,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct UVRect {
+    pub minimum: Vec2,
+    pub maximum: Vec2,
+}
+
+#[derive(Clone)]
+struct Vert {
+    position: Vec3,
+    normal: Vec3,
+    uv: Vec2,
+}
+
+impl Vert {
+    fn to_tuple(&self) -> (FloatOrd, FloatOrd, FloatOrd, FloatOrd, FloatOrd, FloatOrd, FloatOrd, FloatOrd) {
+        (
+            FloatOrd(self.position.x),
+            FloatOrd(self.position.y),
+            FloatOrd(self.position.z),
+            FloatOrd(self.normal.x),
+            FloatOrd(self.normal.y),
+            FloatOrd(self.normal.z),
+            FloatOrd(self.uv.x),
+            FloatOrd(self.uv.y),
+        )
+    }
+}
+
+impl PartialEq for Vert {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_tuple().eq(&other.to_tuple())
+    }
+}
+
+impl Eq for Vert {}
+
+impl std::hash::Hash for Vert {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.to_tuple().hash(state);
+    }
+}
+
+#[derive(Clone)]
 pub struct Map {
     pub room_boxes: Vec<AABB>,
     pub open_doorways: HashSet<Doorway>,
     pub voxels: Brick<Voxel>,
+    pub uv_rects: HashMap<(Block, Direction), UVRect>,
 }
 
 impl Map {
@@ -31,6 +93,7 @@ impl Map {
             room_boxes: vec![starting_room.voxels.bounding_box.clone()],
             open_doorways: starting_room.doorways.iter().cloned().collect(),
             voxels: starting_room.voxels.clone(),
+            uv_rects: HashMap::new(),
         };
 
         let mut rooms_with_rotations = HashSet::new();
@@ -72,6 +135,177 @@ impl Map {
         }
 
         map
+    }
+
+    pub fn generate_mesh(&self) -> Mesh {
+        use bevy::render::render_resource::PrimitiveTopology;
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+        let mut positions = Vec::new();
+        let mut normals = Vec::new();
+        let mut uvs = Vec::new();
+        let mut vert_map = HashMap::<Vert, usize>::new();
+        let mut indices_vec = Vec::new();
+        for pos in self.voxels.bounding_box.iter() {
+            let voxel = self.voxels.index(&pos);
+            if voxel.shape != VoxelShape::Solid {
+                continue;
+            }
+            let block = Block::from(voxel);
+
+            type V = (IVec3, Vec2);
+
+            let mut add_triangle = |tri: (V, V, V), dir: Direction| {
+                let normal = match dir.clone() {
+                    Direction::East => Vec3::X,
+                    Direction::North => Vec3::Z,
+                    Direction::West => Vec3::NEG_X,
+                    Direction::South => Vec3::NEG_Z,
+                    Direction::Up => Vec3::Y,
+                    Direction::Down => Vec3::NEG_Y,
+                };
+                for (offset, uv_interpolant) in [tri.0, tri.1, tri.2] {
+                    let mut uv = Vec2::ZERO;
+                    if let Some(uv_rect) = self.uv_rects.get(&(block.clone(), dir)) {
+                        uv = (uv_interpolant * (uv_rect.maximum - uv_rect.minimum))
+                            + uv_rect.minimum;
+
+                    }
+                    let vert = Vert {
+                        position: (pos + offset).as_vec3(),
+                        normal,
+                        uv,
+                    };
+                    if !vert_map.contains_key(&vert) {
+                        vert_map.insert(vert.clone(), positions.len());
+                        positions.push(vert.position);
+                        normals.push(vert.normal);
+                        uvs.push(vert.uv);
+                    }
+                    let index = vert_map.get(&vert).unwrap();
+                    indices_vec.push(*index as u32);
+                }
+            };
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::NEG_X))
+                    || self.voxels.index(&(pos + IVec3::NEG_X)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
+                    ), Direction::West);
+                    add_triangle((
+                        (IVec3::new(0, 1, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
+                    ), Direction::West);
+                }
+            }
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::X))
+                    || self.voxels.index(&(pos + IVec3::X)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(0.0, 0.0)),
+                    ), Direction::East);
+                    add_triangle((
+                        (IVec3::new(1, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 1.0)),
+                    ), Direction::East);
+                }
+            }
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::NEG_Y))
+                    || self.voxels.index(&(pos + IVec3::NEG_Y)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
+                    ), Direction::Down);
+                    add_triangle((
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 1.0)),
+                    ), Direction::Down);
+                }
+            }
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::Y))
+                    || self.voxels.index(&(pos + IVec3::Y)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
+                    ), Direction::Up);
+                    add_triangle((
+                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
+                    ), Direction::Up);
+                }
+            }
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::NEG_Z))
+                    || self.voxels.index(&(pos + IVec3::NEG_Z)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
+                    ), Direction::South);
+                    add_triangle((
+                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 1.0)),
+                    ), Direction::South);
+                }
+            }
+
+            {
+                let draw_face =
+                    !self.voxels.bounding_box.contains(&(pos + IVec3::Z))
+                    || self.voxels.index(&(pos + IVec3::Z)).shape == VoxelShape::Air;
+                if draw_face {
+                    add_triangle((
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 0.0)),
+                    ), Direction::North);
+                    add_triangle((
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 1.0)),
+                    ), Direction::North);
+                }
+            }
+        }
+
+        let indices = bevy::render::mesh::Indices::U32(indices_vec);
+
+        let mut mesh = Mesh::new(
+            bevy::render::mesh::PrimitiveTopology::TriangleList);
+        mesh.set_indices(Some(indices));
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+
+        mesh
     }
 }
 

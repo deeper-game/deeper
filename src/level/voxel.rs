@@ -25,6 +25,16 @@ pub enum CardinalDir {
     South,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Direction {
+    East,
+    North,
+    West,
+    South,
+    Down,
+    Up,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum VoxelShape {
     Air,

@@ -257,6 +257,7 @@ fn spawn_voxels(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    texture_pack: &Handle<Image>,
     start_room: &crate::level::Room,
     rooms: &[crate::level::Room],
 ) {
@@ -266,22 +267,74 @@ fn spawn_voxels(
                             pos.y as f32 - 0.2,
                             pos.z as f32 - 3.0)
     };
-    let map = crate::level::Map::room_gluing(start_room, 20, rooms);
+    use crate::level::{self, voxel, UVRect};
+    let mut map = level::Map::room_gluing(start_room, 20, rooms);
+    let stone = level::Block {
+        orientation: voxel::CardinalDir::East,
+        texture: voxel::Texture::Stone,
+        style: voxel::Style::Normal,
+    };
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::North),
+        UVRect {
+            minimum: Vec2::new(1.0 / 3.0, 3.0 / 4.0),
+            maximum: Vec2::new(2.0 / 3.0, 4.0 / 4.0),
+        });
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::Down),
+        UVRect {
+            minimum: Vec2::new(1.0 / 3.0, 2.0 / 4.0),
+            maximum: Vec2::new(2.0 / 3.0, 3.0 / 4.0),
+        });
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::South),
+        UVRect {
+            minimum: Vec2::new(1.0 / 3.0, 1.0 / 4.0),
+            maximum: Vec2::new(2.0 / 3.0, 2.0 / 4.0),
+        });
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::Up),
+        UVRect {
+            minimum: Vec2::new(1.0 / 3.0, 0.0 / 4.0),
+            maximum: Vec2::new(2.0 / 3.0, 1.0 / 4.0),
+        });
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::West),
+        UVRect {
+            minimum: Vec2::new(0.0 / 3.0, 1.0 / 4.0),
+            maximum: Vec2::new(1.0 / 3.0, 2.0 / 4.0),
+        });
+    map.uv_rects.insert(
+        (stone.clone(), voxel::Direction::East),
+        UVRect {
+            minimum: Vec2::new(2.0 / 3.0, 1.0 / 4.0),
+            maximum: Vec2::new(3.0 / 3.0, 2.0 / 4.0),
+        });
     let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-    let brown = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
-    for pos in map.voxels.bounding_box.iter() {
-        if map.voxels.index(&pos).shape
-            == crate::level::voxel::VoxelShape::Solid {
-            commands.spawn(PbrBundle {
-                mesh: cube.clone(),
-                material: brown.clone(),
-                transform: pos_to_transform(pos),
-                ..default()
-            })
-                .insert(IsVoxel)
-                .insert(Collider::cuboid(0.5, 0.5, 0.5));
-        }
-    }
+    let brown1 = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.8, 0.7, 0.6),
+        base_color_texture: Some(texture_pack.clone()),
+        //emissive: Color::rgb(0.03, 0.03, 0.03),
+        ..default()
+    });
+    let brown2 = materials.add(StandardMaterial {
+        base_color: Color::rgb(0.5, 0.7, 0.6),
+        //emissive: Color::rgb(0.03, 0.03, 0.03),
+        ..default()
+    });
+    let map_mesh = map.generate_mesh();
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(map_mesh.clone()),
+            material: brown1,
+            transform: pos_to_transform(IVec3::new(0, -4, 0)),
+            ..default()
+        },
+        IsVoxel,
+        Collider::from_bevy_mesh(
+            &map_mesh, &ComputedColliderShape::TriMesh).unwrap(),
+    ));
+
     // Useful for debugging map generation
     if true {
         let room_box_corner = meshes.add(Mesh::from(shape::Cube { size: 1.75 }));
@@ -329,6 +382,7 @@ fn reload_level(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     rooms: Res<Assets<crate::room_loader::TextFile>>,
+    image_assets: Res<crate::assets::ImageAssets>,
     room_assets: Res<crate::assets::RoomAssets>,
     keyboard: Res<Input<KeyCode>>,
     preexisting_voxels: Query<Entity, With<IsVoxel>>,
@@ -342,7 +396,8 @@ fn reload_level(
         let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
         let rooms = [room1.clone(), room2.clone()];
 
-        spawn_voxels(&mut commands, &mut meshes, &mut materials, &room1, &rooms);
+        spawn_voxels(&mut commands, &mut meshes, &mut materials,
+                     &image_assets.block_debug, &room1, &rooms);
     }
 }
 
@@ -361,7 +416,8 @@ fn spawn_level(
     let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
     let rooms = [room1.clone(), room2.clone()];
 
-    spawn_voxels(&mut commands, &mut meshes, &mut materials, &room1, &rooms);
+    spawn_voxels(&mut commands, &mut meshes, &mut materials,
+                 &image_assets.block_debug, &room1, &rooms);
 
     spawn_enemy(&mut commands, &mut meshes, &mut materials,
                 Vec3 { x: 1.0, y: 0.75, z: 1.5 });
