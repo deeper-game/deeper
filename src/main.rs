@@ -107,7 +107,7 @@ fn setup(
     asset_server: Res<AssetServer>,
 ) {
     for mut window in windows.iter_mut() {
-        window.set_present_mode(bevy::window::PresentMode::AutoNoVsync);
+        window.set_present_mode(bevy::window::PresentMode::AutoVsync);
     }
 
     commands.spawn(ImportableShader::new("animation"));
