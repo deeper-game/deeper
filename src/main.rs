@@ -5,7 +5,7 @@
 #![allow(unused_variables)]
 
 use std::f32::consts::{PI, TAU};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use num_traits::float::FloatConst;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
@@ -509,24 +509,40 @@ fn spawn_level(
         Collider::ball(1.5),
     ));
 
-    // use bevy_scene_hook::{SceneHook, HookedSceneBundle};
-    // let scene0 = asset_server.load("gltf/vornak.glb#Scene0");
-    // let mut vornak_transform = Transform::from_xyz(4.0, 1.0, 4.0)
-    //     .with_scale(Vec3::splat(0.2));
-    // vornak_transform.rotate_y(2.0);
-    // commands.spawn((
-    //     HookedSceneBundle {
-    //         scene: SceneBundle {
-    //             scene: scene0,
-    //             transform: vornak_transform,
-    //             ..Default::default()
-    //         },
-    //         hook: SceneHook::new(|entity, cmds| {
-    //             println!("DEBUG: {:?}",
-    //                      entity.get::<Name>().map(|t| t.as_str()));
-    //         }),
-    //     },
-    // ));
+    use bevy_scene_hook::{SceneHook, HookedSceneBundle};
+    let scene0 = asset_server.load("gltf/bottle.glb#Scene0");
+    let mut bottle_transform = Transform::from_xyz(4.0, 1.0, 4.0)
+        .with_scale(Vec3::splat(0.2));
+    bottle_transform.rotate_y(2.0);
+    commands.spawn((
+        HookedSceneBundle {
+            scene: SceneBundle {
+                scene: scene0,
+                transform: bottle_transform,
+                ..Default::default()
+            },
+            hook: SceneHook::new(|entity, cmds| {
+                let (Some(name), Some(children)) = (
+                    entity.get::<Name>().map(|t| t.as_str()),
+                    entity.get::<Children>(),
+                ) else {
+                    return;
+                };
+                let mut names = HashSet::new();
+                names.insert("Sphere");
+                names.insert("Blob1");
+                names.insert("Blob2");
+                names.insert("Blob3");
+                names.insert("Blob4");
+                if !names.contains(name) {
+                    return;
+                }
+                cmds.commands()
+                    .entity(*children.first().unwrap())
+                    .insert(AddBloom { scale: 2.5 });
+            }),
+        },
+    ));
 
     commands.spawn_bundle(PointLightBundle {
         point_light: PointLight {
