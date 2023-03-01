@@ -93,6 +93,7 @@ pub fn main() {
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
         .add_system(toggle_tonemapping)
+        .add_system(debug_scenes)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
         .add_system_set(SystemSet::on_update(GameState::Ready)
@@ -413,6 +414,23 @@ fn spawn_voxels(
                     ..default()
                 })
                     .insert(PartOfMap);
+            }
+        }
+    }
+}
+
+fn debug_scenes(
+    mut commands: Commands,
+    scenes: Res<Assets<Scene>>,
+    materials: Res<Assets<StandardMaterial>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::M) {
+        for (_, scene) in scenes.iter() {
+            if let Some(scene_materials) = scene.world.get_resource::<Assets<StandardMaterial>>() {
+                for (_, material) in scene_materials.iter() {
+                    println!("DEBUG: scene material: {:?}", material);
+                }
             }
         }
     }
