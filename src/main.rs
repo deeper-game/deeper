@@ -292,7 +292,7 @@ fn resize_camera_texture(
 }
 
 #[derive(Component)]
-struct IsVoxel;
+struct PartOfMap;
 
 fn spawn_voxels(
     commands: &mut Commands,
@@ -371,7 +371,7 @@ fn spawn_voxels(
             transform: pos_to_transform(IVec3::new(0, -4, 0)),
             ..default()
         },
-        IsVoxel,
+        PartOfMap,
         Collider::from_bevy_mesh(
             &map_mesh, &ComputedColliderShape::TriMesh).unwrap(),
     ));
@@ -387,14 +387,14 @@ fn spawn_voxels(
                 transform: pos_to_transform(room_box.minimum),
                 ..default()
             })
-                .insert(IsVoxel);
+                .insert(PartOfMap);
             commands.spawn(PbrBundle {
                 mesh: room_box_corner.clone(),
                 material: room_box_material.clone(),
                 transform: pos_to_transform(room_box.maximum),
                 ..default()
             })
-                .insert(IsVoxel);
+                .insert(PartOfMap);
         }
         let red = materials.add(Color::rgba(1.0, 0.0, 0.0, 0.5).into());
         let green = materials.add(Color::rgba(0.0, 1.0, 0.0, 0.5).into());
@@ -412,7 +412,7 @@ fn spawn_voxels(
                     transform: pos_to_transform(pos),
                     ..default()
                 })
-                    .insert(IsVoxel);
+                    .insert(PartOfMap);
             }
         }
     }
@@ -426,7 +426,7 @@ fn reload_level(
     image_assets: Res<crate::assets::ImageAssets>,
     room_assets: Res<crate::assets::RoomAssets>,
     keyboard: Res<Input<KeyCode>>,
-    preexisting_voxels: Query<Entity, With<IsVoxel>>,
+    preexisting_voxels: Query<Entity, With<PartOfMap>>,
 ) {
     if keyboard.just_pressed(KeyCode::R) {
         for entity in preexisting_voxels.iter() {
