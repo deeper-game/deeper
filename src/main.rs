@@ -12,6 +12,7 @@ use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
+use crate::add_bloom::AddBloom;
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
@@ -48,6 +49,7 @@ pub mod self_destruct;
 pub mod importable_shaders;
 pub mod explosion;
 pub mod trail;
+pub mod add_bloom;
 
 pub fn main() {
     let mut default_plugins = DefaultPlugins.build();
@@ -84,6 +86,7 @@ pub fn main() {
         .add_plugin(crate::importable_shaders::ImportableShadersPlugin)
         .add_plugin(crate::explosion::ExplosionPlugin)
         .add_plugin(crate::trail::TrailPlugin)
+        .add_plugin(crate::add_bloom::AddBloomPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)
