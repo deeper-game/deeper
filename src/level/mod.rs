@@ -198,14 +198,14 @@ impl Map {
                     || self.voxels.index(&(pos + IVec3::NEG_X)).shape == VoxelShape::Air;
                 if draw_face {
                     add_triangle((
-                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
-                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 0.0)),
                     ), Direction::West);
                     add_triangle((
-                        (IVec3::new(0, 1, 1), Vec2::new(1.0, 1.0)),
-                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(1.0, 1.0)),
                     ), Direction::West);
                 }
             }
@@ -218,12 +218,12 @@ impl Map {
                     add_triangle((
                         (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
                         (IVec3::new(1, 0, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(1, 0, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 1.0)),
                     ), Direction::East);
                     add_triangle((
                         (IVec3::new(1, 0, 1), Vec2::new(0.0, 1.0)),
                         (IVec3::new(1, 1, 0), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(1, 1, 1), Vec2::new(0.0, 0.0)),
                     ), Direction::East);
                 }
             }
@@ -234,14 +234,14 @@ impl Map {
                     || self.voxels.index(&(pos + IVec3::NEG_Y)).shape == VoxelShape::Air;
                 if draw_face {
                     add_triangle((
-                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 1.0)),
                     ), Direction::Down);
                     add_triangle((
-                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 0.0)),
                     ), Direction::Down);
                 }
             }
@@ -270,14 +270,14 @@ impl Map {
                     || self.voxels.index(&(pos + IVec3::NEG_Z)).shape == VoxelShape::Air;
                 if draw_face {
                     add_triangle((
-                        (IVec3::new(0, 0, 0), Vec2::new(0.0, 0.0)),
-                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(0, 0, 0), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(0.0, 1.0)),
                     ), Direction::South);
                     add_triangle((
-                        (IVec3::new(1, 1, 0), Vec2::new(1.0, 1.0)),
-                        (IVec3::new(1, 0, 0), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(0, 1, 0), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(1, 1, 0), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 0), Vec2::new(0.0, 1.0)),
+                        (IVec3::new(0, 1, 0), Vec2::new(1.0, 0.0)),
                     ), Direction::South);
                 }
             }
@@ -288,14 +288,14 @@ impl Map {
                     || self.voxels.index(&(pos + IVec3::Z)).shape == VoxelShape::Air;
                 if draw_face {
                     add_triangle((
-                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(0, 0, 1), Vec2::new(0.0, 1.0)),
                     ), Direction::North);
                     add_triangle((
-                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 1.0)),
-                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 0.0)),
-                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(0, 1, 1), Vec2::new(0.0, 0.0)),
+                        (IVec3::new(1, 0, 1), Vec2::new(1.0, 1.0)),
+                        (IVec3::new(1, 1, 1), Vec2::new(1.0, 0.0)),
                     ), Direction::North);
                 }
             }
