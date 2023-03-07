@@ -612,7 +612,7 @@ fn spawn_level(
         },
     ));
 
-    commands.spawn_bundle(PointLightBundle {
+    commands.spawn(PointLightBundle {
         point_light: PointLight {
             intensity: 16000.0,
             range: 500.0,
@@ -622,6 +622,34 @@ fn spawn_level(
         transform: Transform::from_xyz(4.0, 30.0, 4.0),
         ..default()
     });
+    const HALF_SIZE: f32 = 10.0;
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            // Configure the projection to better fit the scene
+            shadow_projection: OrthographicProjection {
+                left: -HALF_SIZE,
+                right: HALF_SIZE,
+                bottom: -HALF_SIZE,
+                top: HALF_SIZE,
+                near: -10.0 * HALF_SIZE,
+                far: 10.0 * HALF_SIZE,
+                ..default()
+            },
+            illuminance: 40.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform {
+            translation: Vec3::new(50.0, 50.0, 50.0),
+            rotation: Quat::from_rotation_x(-PI / 4.),
+            ..default()
+        },
+        ..default()
+    });
+    // commands.insert_resource(AmbientLight {
+    //     color: Color::WHITE,
+    //     brightness: 0.03,
+    // });
 }
 
 fn spawn_projectiles(
