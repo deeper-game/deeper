@@ -92,6 +92,7 @@ pub fn main() {
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
         .add_system(toggle_tonemapping)
+        .add_system(toggle_msaa)
         .add_system(debug_scenes)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
@@ -234,6 +235,19 @@ fn toggle_tonemapping(
                 },
             }
         }
+    }
+}
+
+fn toggle_msaa(
+    keyboard: Res<Input<KeyCode>>,
+    mut msaa: ResMut<Msaa>,
+) {
+    if keyboard.just_pressed(KeyCode::M) {
+        msaa.samples = match msaa.samples {
+            1 => 4,
+            4 => 1,
+            x => x,
+        };
     }
 }
 
