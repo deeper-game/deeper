@@ -94,6 +94,7 @@ pub fn main() {
         .add_system(toggle_tonemapping)
         .add_system(toggle_msaa)
         .add_system(debug_scenes)
+        .add_system(add_convex_hull_colliders)
         .add_system_set(SystemSet::on_enter(GameState::Ready)
                         .with_system(spawn_level))
         .add_system_set(SystemSet::on_update(GameState::Ready)
@@ -210,6 +211,60 @@ fn setup(
         },
         post_processing_pass_layer,
     ));
+}
+
+fn add_convex_hull_colliders(
+    mut commands: Commands,
+    mut scenes: ResMut<Assets<Scene>>,
+    meshes: Res<Assets<Mesh>>,
+    scene_entities: Query<(Entity, &GlobalTransform, &Handle<Scene>), Without<Collider>>,
+) {
+    let mut mapping = HashMap::new();
+    for (entity, transform, scene_handle) in scene_entities.iter() {
+        mapping.insert(scene_handle.id(), (entity, transform.clone()));
+    }
+    for (id, mut scene) in scenes.iter_mut() {
+        let Some((entity, outer_transform)) = mapping.get(&id) else {
+            continue;
+        };
+        let inverted_outer_matrix = outer_transform.compute_matrix().inverse();
+        let mut transform_mapping = HashMap::new();
+        {
+            let mut transforms_query = scene.world.query::<(Entity, &Transform)>();
+            for (entity, transform) in transforms_query.iter_mut(&mut scene.world) {
+                transform_mapping.insert(entity, transform.clone());
+            }
+        }
+        let mut meshes_query = scene.world.query::<(&Handle<Mesh>, &GlobalTransform, &Parent)>();
+        let mut points = Vec::new();
+        for (mesh_handle, transform, parent) in meshes_query.iter_mut(&mut scene.world) {
+            println!("Mesh transform: {:?}", transform);
+            let transform = transform_mapping.get(&parent.get()).unwrap();
+            println!("Parent transform: {:?}", transform);
+            use bevy::render::mesh::VertexAttributeValues;
+            // if name.as_str() != "ColliderSphere" {
+            //     continue;
+            // }
+            let VertexAttributeValues::Float32x3(vec) =
+                meshes.get(mesh_handle).unwrap()
+                .attribute(Mesh::ATTRIBUTE_POSITION).unwrap()
+                else { panic!("Mesh position attribute wasn't 3D float32"); };
+            for pos in vec {
+                let mut point = Vec3::new(pos[0], pos[1], pos[2]);
+                point = transform.transform_point(point);
+                //point = outer_transform.compute_matrix().transform_point3(point);
+                //point = outer_transform.transform_point(point);
+                points.push(point);
+            }
+            // colliders.push((
+            //     Vec3::ZERO,
+            //     Quat::IDENTITY,
+            //     Collider::from_bevy_mesh(meshes.get(mesh_handle).unwrap(),
+            //                              &ComputedColliderShape::TriMesh).unwrap(),
+            // ));
+        }
+        commands.entity(*entity).insert(Collider::convex_hull(&points).unwrap());
+    }
 }
 
 use bevy::core_pipeline::tonemapping::Tonemapping;
@@ -538,6 +593,9 @@ fn spawn_level(
                 ) else {
                     return;
                 };
+                if name == "Collider" {
+                    cmds.insert(Visibility::INVISIBLE);
+                }
                 let mut names = HashSet::new();
                 names.insert("Sphere");
                 names.insert("Blob1");
