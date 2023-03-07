@@ -394,8 +394,13 @@ pub fn fps_controller_render(
                 }
                 // TODO: let this be more configurable
                 let camera_height = capsule.segment().b().y + capsule.radius() * 0.75;
-                render_transform.translation =
+                let old_position = render_transform.translation;
+                let new_position =
                     logical_transform.translation + Vec3::Y * camera_height;
+                if (new_position - old_position).length() > 0.02 {
+                    debug!("player position is {:?}", new_position);
+                }
+                render_transform.translation = new_position;
                 render_transform.rotation = look_quat(controller.pitch, controller.yaw);
             }
         }
