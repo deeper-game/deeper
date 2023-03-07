@@ -20,7 +20,6 @@ use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 use crate::postprocessing::PostprocessingMaterial;
 use crate::projectile::Projectile;
-use crate::enemy::spawn_enemy;
 use crate::fps_controller::{
     FpsController, FpsControllerInput, LogicalPlayer, RenderPlayer
 };
@@ -39,7 +38,7 @@ pub mod interact;
 pub mod editor;
 pub mod crt;
 pub mod projectile;
-pub mod enemy;
+pub mod enemies;
 pub mod fps_controller;
 pub mod room_loader;
 pub mod circles;
@@ -80,7 +79,7 @@ pub fn main() {
         .add_plugin(crate::key_translator::KeyTranslatorPlugin)
         .add_plugin(crate::crt::CrtPlugin)
         .add_plugin(crate::projectile::ProjectilePlugin)
-        .add_plugin(crate::enemy::EnemyPlugin)
+        .add_plugin(crate::enemies::EnemiesPlugin)
         .add_plugin(crate::circles::CirclePlugin)
         .add_plugin(crate::self_destruct::SelfDestructPlugin)
         .add_plugin(crate::importable_shaders::ImportableShadersPlugin)
@@ -477,9 +476,6 @@ fn spawn_level(
 
     spawn_voxels(&mut commands, &mut meshes, &mut materials,
                  &Some(image_assets.stone.clone()), &room1, &rooms);
-
-    spawn_enemy(&mut commands, &mut meshes, &mut materials,
-                Vec3 { x: 1.0, y: 0.75, z: 1.5 });
 
     commands.spawn((
         Interactable,
