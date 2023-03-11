@@ -95,7 +95,7 @@ pub fn create_missile(
             mesh: mesh.clone(),
             material: material.clone(),
             transform: transform.clone(),
-            visibility: Visibility::INVISIBLE,
+            visibility: Visibility::Hidden,
             ..default()
         },
         Missile {
@@ -141,16 +141,16 @@ pub fn create_bubbles_circle(
         ..default()
     });
 
-    let missile_mesh = meshes.add(Mesh::from(shape::Icosphere {
+    let missile_mesh = meshes.add(Mesh::try_from(shape::Icosphere {
         radius: 0.005,
         subdivisions: 1,
-    }));
+    }).unwrap());
 
     let explosion_settings = ExplosionSettings {
-        mesh: meshes.add(Mesh::from(shape::Icosphere {
+        mesh: meshes.add(Mesh::try_from(shape::Icosphere {
             radius: 0.06,
             subdivisions: 1,
-        })),
+        }).unwrap()),
     };
 
     let trail_material = materials.add(StandardMaterial {
@@ -269,7 +269,7 @@ pub fn update_bubbles_circles(
             let t = (time.last_update().unwrap() - missile.start_time)
                 .as_secs_f32();
             if t > circle_duration {
-                *visibility = Visibility::VISIBLE;
+                *visibility = Visibility::Visible;
             }
             if t > circle_duration + missile_duration {
                 commands.entity(missile_entity).despawn();

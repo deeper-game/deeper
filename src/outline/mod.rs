@@ -39,22 +39,22 @@ use bevy::{
         mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
         render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets},
         render_phase::{
-            AddRenderCommand, DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase,
-            SetItemPipeline, TrackedRenderPass,
+            AddRenderCommand, DrawFunctions, PhaseItem, RenderCommand,
+            RenderCommandResult, RenderPhase, SetItemPipeline, TrackedRenderPass,
         },
         render_resource::{
             encase, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
             BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState,
             BufferBindingType, BufferDescriptor, BufferInitDescriptor, CompareFunction,
             DepthBiasState, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState,
-            PipelineCache, PolygonMode, PrimitiveState, RenderPipelineDescriptor,
+            PipelineCache, PolygonMode, PrimitiveState, RenderPipelineDescriptor, ShaderDefVal,
             ShaderStages, ShaderSize, ShaderType, SpecializedMeshPipeline, SpecializedMeshPipelineError,
             SpecializedMeshPipelines, StencilFaceState, StencilState, TextureFormat, VertexState,
         },
         renderer::RenderDevice,
         texture::BevyDefault,
         view::ExtractedView,
-        RenderApp, RenderStage,
+        RenderApp, RenderSet,
     },
 };
 use wgpu_types::{BufferUsages, ColorTargetState, ColorWrites, VertexFormat};
@@ -89,6 +89,9 @@ pub struct OutlinePlugin;
 
 impl Plugin for OutlinePlugin {
     fn build(&self, app: &mut App) {
+        app.add_asset::<OutlineMaterial>();
+        return; // TODO: switch to bevy_mod_outline
+
         load_internal_asset!(
             app,
             OUTLINE_SHADER_HANDLE,
@@ -104,10 +107,9 @@ impl Plugin for OutlinePlugin {
             mapped_at_creation: false,
         });
 
-        app.add_asset::<OutlineMaterial>()
-            .add_plugin(ExtractComponentPlugin::<Handle<OutlineMaterial>>::default())
+        app.add_plugin(ExtractComponentPlugin::<Handle<OutlineMaterial>>::default())
             .add_plugin(RenderAssetPlugin::<OutlineMaterial>::default())
-            .add_system_to_stage(CoreStage::PostUpdate, prepare_outline_mesh);
+            .add_system(prepare_outline_mesh.in_base_set(CoreSet::PostUpdate));
 
         if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
@@ -118,10 +120,10 @@ impl Plugin for OutlinePlugin {
                 })
                 .init_resource::<OutlinePipeline>()
                 .init_resource::<SpecializedMeshPipelines<OutlinePipeline>>()
-                .add_system_to_stage(RenderStage::Extract, extract_window_size)
-                .add_system_to_stage(RenderStage::Prepare, prepare_window_size)
-                .add_system_to_stage(RenderStage::Queue, queue_outlines)
-                .add_system_to_stage(RenderStage::Queue, queue_window_size_bind_group);
+                .add_system(extract_window_size.in_set(RenderSet::ExtractCommands).in_schedule(ExtractSchedule))
+                .add_system(prepare_window_size.in_set(RenderSet::Prepare))
+                .add_system(queue_outlines.in_set(RenderSet::Queue))
+                .add_system(queue_window_size_bind_group.in_set(RenderSet::Queue));
         }
     }
 }
@@ -207,12 +209,12 @@ impl FromWorld for OutlinePipeline {
             count: None,
         };
 
+        let view_layout = mesh_pipeline.view_layout.clone();
+
         let mesh_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             entries: &[mesh_binding],
             label: Some("mesh_layout"),
         });
-
-        let view_layout = mesh_pipeline.view_layout.clone();
 
         let material_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("material layout"),
@@ -281,16 +283,27 @@ impl SpecializedMeshPipeline for OutlinePipeline {
             frag_texture_format = TextureFormat::Rgba16Float;
         }
 
+        let shader_defs = vec![
+            ShaderDefVal::Int(
+                "MAX_DIRECTIONAL_LIGHTS".to_string(),
+                bevy::pbr::MAX_DIRECTIONAL_LIGHTS as i32,
+            ),
+            ShaderDefVal::Int(
+                "MAX_CASCADES_PER_LIGHT".to_string(),
+                bevy::pbr::MAX_CASCADES_PER_LIGHT as i32,
+            ),
+        ];
+
         Ok(RenderPipelineDescriptor {
             vertex: VertexState {
                 shader: OUTLINE_SHADER_HANDLE.typed::<Shader>(),
                 entry_point: "vertex".into(),
-                shader_defs: vec![],
+                shader_defs: shader_defs.clone(),
                 buffers: vec![vertex_buffer_layout],
             },
             fragment: Some(FragmentState {
                 shader: OUTLINE_SHADER_HANDLE.typed::<Shader>(),
-                shader_defs: vec![],
+                shader_defs: shader_defs.clone(),
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
                     format: frag_texture_format,
@@ -298,7 +311,8 @@ impl SpecializedMeshPipeline for OutlinePipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            layout: Some(bind_group_layout),
+            layout: bind_group_layout,
+            push_constant_ranges: vec![], // TODO: verify
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
                 cull_mode: Some(Face::Front),
@@ -351,7 +365,7 @@ fn queue_outlines(
         .get_id::<DrawOutlines>()
         .unwrap();
 
-    let msaa_key = MeshPipelineKey::from_msaa_samples(msaa.samples);
+    let msaa_key = MeshPipelineKey::from_msaa_samples(msaa.samples());
 
     for (view, mut opaque_phase) in views.iter_mut() {
         let inverse_view_matrix = view.transform.compute_matrix().inverse();
@@ -393,18 +407,18 @@ type DrawOutlines = (
 );
 
 struct SetOutlineMaterialBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetOutlineMaterialBindGroup<I> {
-    type Param = (
-        SRes<RenderAssets<OutlineMaterial>>,
-        SQuery<Read<Handle<OutlineMaterial>>>,
-    );
+impl<const I: usize, P: PhaseItem> RenderCommand<P> for SetOutlineMaterialBindGroup<I> {
+    type Param = SRes<RenderAssets<OutlineMaterial>>;
+    type ViewWorldQuery = ();
+    type ItemWorldQuery = Read<Handle<OutlineMaterial>>;
+
     fn render<'w>(
-        _view: Entity,
-        item: Entity,
-        (materials, query): SystemParamItem<'w, '_, Self::Param>,
+        _item: &P,
+        _view: (),
+        material_handle: &'w Handle<OutlineMaterial>,
+        materials: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let material_handle = query.get(item).unwrap();
         let material = materials.into_inner().get(material_handle).unwrap();
         pass.set_bind_group(I, &material.bind_group, &[]);
         RenderCommandResult::Success

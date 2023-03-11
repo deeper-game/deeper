@@ -1,6 +1,6 @@
-let tau: f32 = 6.28318530718;
-let tau_1_3: f32 = 2.09439510239;
-let tau_2_3: f32 = 4.18879020479;
+const tau: f32 = 6.28318530718;
+const tau_1_3: f32 = 2.09439510239;
+const tau_2_3: f32 = 4.18879020479;
 
 struct Circle {
     center: vec2<f32>,

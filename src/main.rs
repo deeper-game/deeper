@@ -10,8 +10,7 @@ use num_traits::float::FloatConst;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
-use bevy_asset_loader::prelude::*;
-use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
+//use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
 use crate::add_bloom::AddBloom;
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
@@ -61,7 +60,7 @@ pub fn main() {
     }
 
     App::new()
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .add_plugins(default_plugins)
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
@@ -91,14 +90,11 @@ pub fn main() {
         .add_startup_system(setup)
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
-        .add_system(toggle_tonemapping)
         .add_system(toggle_msaa)
         .add_system(debug_scenes)
         .add_system(add_convex_hull_colliders)
-        .add_system_set(SystemSet::on_enter(GameState::Ready)
-                        .with_system(spawn_level))
-        .add_system_set(SystemSet::on_update(GameState::Ready)
-                        .with_system(reload_level))
+        .add_system(spawn_level.in_schedule(OnEnter(GameState::Ready)))
+        .add_system(reload_level.run_if(in_state(GameState::Ready)))
         //.add_system(movement)
         .run();
 }
@@ -108,11 +104,11 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut pp_materials: ResMut<Assets<PostprocessingMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    mut windows: ResMut<Windows>,
+    mut windows: Query<&mut Window>,
     asset_server: Res<AssetServer>,
 ) {
     for mut window in windows.iter_mut() {
-        window.set_present_mode(bevy::window::PresentMode::AutoVsync);
+        window.present_mode = bevy::window::PresentMode::AutoVsync;
     }
 
     commands.spawn(ImportableShader::new("animation"));
@@ -148,7 +144,7 @@ fn setup(
     use bevy::render::camera::RenderTarget;
     use bevy::render::view::RenderLayers;
     use bevy::core_pipeline::clear_color::ClearColorConfig;
-    use bevy::core_pipeline::tonemapping::Tonemapping;
+    use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
 
     let post_processing_pass_layer = RenderLayers::layer((RenderLayers::TOTAL_LAYERS - 1) as u8);
 
@@ -171,7 +167,8 @@ fn setup(
                 target: RenderTarget::Image(render_target.clone()),
                 ..camera.clone()
             },
-            tonemapping: Tonemapping::Enabled { deband_dither: true },
+            tonemapping: Tonemapping::AgX,
+            dither: DebandDither::Enabled,
             ..default()
         },
         RenderPlayer(0),
@@ -183,7 +180,8 @@ fn setup(
 
     commands.spawn((
         MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 1.0 })),
+            mesh: meshes.add(
+                Mesh::from(shape::Plane { size: 1.0, ..default() })),
             material: pp_materials.add(PostprocessingMaterial {
                 input: render_target.clone(),
                 palette: palette.clone(),
@@ -204,9 +202,11 @@ fn setup(
         Camera3dBundle {
             transform: Transform::from_xyz(300.0, 300.0, 300.0),
             camera: Camera {
-                priority: 1,
+                order: 1,
                 ..camera.clone()
             },
+            tonemapping: Tonemapping::None,
+            dither: DebandDither::Disabled,
             ..default()
         },
         post_processing_pass_layer,
@@ -267,41 +267,16 @@ fn add_convex_hull_colliders(
     }
 }
 
-use bevy::core_pipeline::tonemapping::Tonemapping;
-
-fn toggle_tonemapping(
-    keyboard: Res<Input<KeyCode>>,
-    mut query: Query<&mut Tonemapping, With<RenderPlayer>>,
-) {
-    if keyboard.just_pressed(KeyCode::T) {
-        for mut tonemapping in query.iter_mut() {
-            *tonemapping = match *tonemapping {
-                Tonemapping::Disabled => {
-                    println!("Tonemapping without deband");
-                    Tonemapping::Enabled { deband_dither: false }
-                },
-                Tonemapping::Enabled { deband_dither: false } => {
-                    println!("Tonemapping with deband");
-                    Tonemapping::Enabled { deband_dither: true }
-                },
-                Tonemapping::Enabled { deband_dither: true } => {
-                    println!("Tonemapping disabled");
-                    Tonemapping::Disabled
-                },
-            }
-        }
-    }
-}
-
 fn toggle_msaa(
     keyboard: Res<Input<KeyCode>>,
     mut msaa: ResMut<Msaa>,
 ) {
     if keyboard.just_pressed(KeyCode::M) {
-        msaa.samples = match msaa.samples {
-            1 => 4,
-            4 => 1,
-            x => x,
+        *msaa = match *msaa {
+            Msaa::Off => Msaa::Sample2,
+            Msaa::Sample2 => Msaa::Sample4,
+            Msaa::Sample4 => Msaa::Sample8,
+            Msaa::Sample8 => Msaa::Off,
         };
     }
 }
@@ -324,6 +299,7 @@ fn make_camera_image(aspect_ratio: f32) -> Image {
             size: Extent3d { width, height, ..default() },
             dimension: TextureDimension::D2,
             format: TextureFormat::Bgra8UnormSrgb,
+            view_formats: &[TextureFormat::Bgra8UnormSrgb],
             mip_level_count: 1,
             sample_count: 1,
             usage: TextureUsages::TEXTURE_BINDING
@@ -563,10 +539,10 @@ fn spawn_level(
 
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Icosphere {
+            mesh: meshes.add(Mesh::try_from(shape::Icosphere {
                 radius: 1.5,
                 subdivisions: 3,
-            })),
+            }).unwrap()),
             material: materials.add(Color::rgb(1.0, 0.8, 0.8).into()),
             transform: Transform::from_xyz(1.5, 15.0, 1.5),
             ..default()
@@ -594,7 +570,7 @@ fn spawn_level(
                     return;
                 };
                 if name == "Collider" {
-                    cmds.insert(Visibility::INVISIBLE);
+                    cmds.insert(Visibility::Hidden);
                 }
                 let mut names = HashSet::new();
                 names.insert("Sphere");
@@ -625,16 +601,6 @@ fn spawn_level(
     const HALF_SIZE: f32 = 10.0;
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            // Configure the projection to better fit the scene
-            shadow_projection: OrthographicProjection {
-                left: -HALF_SIZE,
-                right: HALF_SIZE,
-                bottom: -HALF_SIZE,
-                top: HALF_SIZE,
-                near: -10.0 * HALF_SIZE,
-                far: 10.0 * HALF_SIZE,
-                ..default()
-            },
             illuminance: 40.0,
             shadows_enabled: true,
             ..default()
@@ -662,7 +628,7 @@ fn spawn_projectiles(
     if keyboard.just_pressed(KeyCode::F) {
         let camera = player.single();
         let velocity = 0.1 * camera.forward();
-        commands.spawn_bundle((
+        commands.spawn((
             Projectile { velocity },
             PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Cube { size: 0.05 })),

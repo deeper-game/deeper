@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy::window::CursorGrabMode;
-use bevy_egui::{egui, EguiContext};
+use bevy::window::{CursorGrabMode, PrimaryWindow};
+use bevy_egui::{egui, EguiContexts};
 use crate::fps_controller::FpsController;
 use crate::assets::{GameState, ImageAssets};
 
@@ -19,10 +19,8 @@ impl Plugin for UiPlugin {
             )
             .add_system(manage_cursor)
             .add_system(show_create_or_join)
-            .add_system_set(SystemSet::on_enter(GameState::Ready)
-                            .with_system(show_crosshair))
-            .add_system_set(SystemSet::on_enter(GameState::Ready)
-                            .with_system(show_inventory));
+            .add_system(show_crosshair.in_schedule(OnEnter(GameState::Ready)))
+            .add_system(show_inventory.in_schedule(OnEnter(GameState::Ready)));
     }
 }
 
@@ -110,7 +108,7 @@ pub fn show_crosshair(
         })
         .with_children(|parent| {
             parent.spawn(ImageBundle {
-                image: UiImage(images.crosshair.clone()),
+                image: UiImage::new(images.crosshair.clone()),
                 style: Style {
                     size: Size::new(Val::Px(32.0), Val::Px(32.0)),
                     ..default()
@@ -168,7 +166,7 @@ pub fn show_inventory(
                                     },
                                     ..default()
                                 },
-                                image: UiImage(images.empty.clone()),
+                                image: UiImage::new(images.empty.clone()),
                                 ..default()
                             })
                                 .insert(InventorySlot { position: (i, j) });
@@ -181,13 +179,13 @@ pub fn show_inventory(
 
 pub fn show_create_or_join(
     mut commands: Commands,
-    mut egui_context: ResMut<EguiContext>,
+    mut egui_contexts: EguiContexts,
     mut ui_state: ResMut<UiState>,
-    windows: Res<Windows>
+    windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     let mut next_ui_state = None;
-    let width = windows.primary().width();
-    let height = windows.primary().height();
+    let width = windows.single().width();
+    let height = windows.single().height();
 
     match *ui_state {
         UiState::CreateOrJoin(ref mut state) => {
@@ -196,7 +194,7 @@ pub fn show_create_or_join(
                 .collapsible(false)
                 .pivot(egui::Align2::CENTER_CENTER)
                 .fixed_pos(egui::Pos2 { x: width / 2.0, y: height / 2.0 })
-                .show(egui_context.ctx_mut(), |ui| {
+                .show(egui_contexts.ctx_mut(), |ui| {
                     ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
                         ui.add(egui::Separator::default().spacing(12.0));
                         ui.horizontal(|ui| {
@@ -238,7 +236,7 @@ pub fn show_create_or_join(
                 .collapsible(false)
                 .pivot(egui::Align2::CENTER_CENTER)
                 .fixed_pos(egui::Pos2 { x: width / 2.0, y: height / 2.0 })
-                .show(egui_context.ctx_mut(), |ui| {
+                .show(egui_contexts.ctx_mut(), |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Lobby name: ");
                         let mut buf = state.room_id.clone();
@@ -265,23 +263,23 @@ pub fn show_create_or_join(
 
 pub fn manage_cursor(
     ui_state: Res<UiState>,
-    mut windows: ResMut<Windows>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
     btn: Res<Input<MouseButton>>,
     key: Res<Input<KeyCode>>,
     mut controllers: Query<&mut FpsController>,
 ) {
     if ui_state.from_playing_game().is_some() {
-        let window = windows.get_primary_mut().unwrap();
+        let mut window = windows.single_mut();
         if btn.just_pressed(MouseButton::Left) {
-            window.set_cursor_grab_mode(CursorGrabMode::Locked);
-            window.set_cursor_visibility(false);
+            window.cursor.grab_mode = CursorGrabMode::Locked;
+            window.cursor.visible = false;
             for mut controller in &mut controllers {
                 controller.enable_input = true;
             }
         }
         if key.just_pressed(KeyCode::Escape) {
-            window.set_cursor_grab_mode(CursorGrabMode::None);
-            window.set_cursor_visibility(true);
+            window.cursor.grab_mode = CursorGrabMode::None;
+            window.cursor.visible = true;
             for mut controller in &mut controllers {
                 controller.enable_input = false;
             }

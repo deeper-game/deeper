@@ -44,10 +44,11 @@ fn create_screen(
         overlay_texture: Some(potato),
     });
 
-    commands.spawn_bundle((
+    commands.spawn((
         crate::editor::Screen::new(crate::editor::Editor::new()),
         MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 0.25 })),
+            mesh: meshes.add(
+                Mesh::from(shape::Plane { size: 0.25, ..default() })),
             material: crt_material_handle,
             transform: Transform::from_xyz(1.0, 0.75, 1.0),
             //.looking_at(Vec3::new(1.5, 1.5, 1.5), Vec3::new(0.0, 1.0, 0.0)),

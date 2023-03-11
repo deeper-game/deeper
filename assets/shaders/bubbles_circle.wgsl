@@ -9,7 +9,7 @@ struct GlyphRect {
     max_y: f32,
 }
 
-let NUM_BUBBLES: i32 = 6;
+const NUM_BUBBLES: i32 = 6;
 
 struct BubblesCircleMaterial {
     @align(16)

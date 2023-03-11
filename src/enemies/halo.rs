@@ -4,6 +4,7 @@ use bevy::reflect::TypeUuid;
 use bevy::render::render_resource::{
     AsBindGroup, ShaderRef, ShaderType
 };
+use crate::assets::GameState;
 use crate::fps_controller::RenderPlayer;
 use std::collections::HashMap;
 
@@ -14,12 +15,9 @@ impl Plugin for HaloPlugin {
         app
             .add_plugin(MaterialPlugin::<HaloMaterial>::default())
             .insert_resource(HaloTimer(Timer::from_seconds(0.1, TimerMode::Repeating)))
-            .add_system_set(
-                SystemSet::on_update(crate::assets::GameState::Ready)
-                    .with_system(create_halos)
-                    .with_system(halo_behavior)
-                    .with_system(halo_cycle)
-            );
+            .add_system(create_halos.run_if(in_state(GameState::Ready)))
+            .add_system(halo_behavior.run_if(in_state(GameState::Ready)))
+            .add_system(halo_cycle.run_if(in_state(GameState::Ready)));
     }
 }
 
@@ -125,7 +123,9 @@ fn halo_behavior(
             n
         };
 
-        let scene: &mut Scene = scenes.get_mut(halo_scene_handle).unwrap();
+        let Some(scene) = scenes.get_mut(halo_scene_handle) else {
+            continue;
+        };
 
         let mut name_to_entity = HashMap::<String, Entity>::new();
         for (entity, name) in names.iter() {
@@ -141,13 +141,14 @@ fn halo_behavior(
         ];
 
         for name in halo_names {
-            let entity = name_to_entity.get(name).unwrap().clone();
-            commands.entity(entity).insert(
-                if name == format!("{:?}", halo.halo_animation) {
-                    Visibility::VISIBLE
-                } else {
-                    Visibility::INVISIBLE
-                });
+            if let Some(entity) = name_to_entity.get(name) {
+                commands.entity(entity.clone()).insert(
+                    if name == format!("{:?}", halo.halo_animation) {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    });
+            }
         }
     }
 }

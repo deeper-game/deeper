@@ -34,15 +34,15 @@ fn rgba2hsba(color: vec4<f32>) -> vec4<f32> {
 }
 
 fn hsba2rgba(color: vec4<f32>) -> vec4<f32> {
-    let rgb = (color.x * 6.0 + vec3<f32>(0.0, 4.0, 2.0)) / 6.0;
-    let rgb = abs(((rgb - trunc(rgb)) * 6.0) - 3.0) - 1.0;
-    let rgb = vec3<f32>(
-        clamp(rgb.r, 0.0, 1.0),
-        clamp(rgb.g, 0.0, 1.0),
-        clamp(rgb.b, 0.0, 1.0));
-    let rgb = rgb * rgb * (3.0 - 2.0 * rgb);
-    let rgb = color.z * mix(vec3<f32>(1.0, 1.0, 1.0), rgb, color.y);
-    return vec4<f32>(rgb.rgb, color.a);
+    let rgb0 = (color.x * 6.0 + vec3<f32>(0.0, 4.0, 2.0)) / 6.0;
+    let rgb1 = abs(((rgb0 - trunc(rgb0)) * 6.0) - 3.0) - 1.0;
+    let rgb2 = vec3<f32>(
+        clamp(rgb1.r, 0.0, 1.0),
+        clamp(rgb1.g, 0.0, 1.0),
+        clamp(rgb1.b, 0.0, 1.0));
+    let rgb3 = rgb2 * rgb2 * (3.0 - 2.0 * rgb2);
+    let rgb4 = color.z * mix(vec3<f32>(1.0, 1.0, 1.0), rgb3, color.y);
+    return vec4<f32>(rgb4.rgb, color.a);
 }
 
 @fragment
@@ -64,7 +64,7 @@ fn fragment(
     //     pow(round(pow(color.b, exponent) * num_colors) / num_colors, 1.0 / exponent),
     //     color.a);
     let hsba = rgba2hsba(color);
-    let hsba = vec4<f32>(
+    let rounded_hsba = vec4<f32>(
         floor(hsba.r * 32.0) / 32.0,
         floor(hsba.g * 32.0) / 32.0,
         floor(hsba.b * 64.0) / 64.0,
@@ -74,5 +74,5 @@ fn fragment(
     //    clamp(hsba.g, 0.0, 1.0),
     //    clamp(hsba.b, 0.0, 1.0),
     //    hsba.a);
-    return color; // hsba2rgba(hsba);
+    return color; // hsba2rgba(rounded_hsba);
 }

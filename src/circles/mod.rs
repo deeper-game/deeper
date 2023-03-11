@@ -1,4 +1,4 @@
-use crate::assets::FontAssets;
+use crate::assets::{GameState, FontAssets};
 use bevy::prelude::*;
 use bevy::text::*;
 use bevy_rapier3d::prelude::RapierContext;
@@ -14,14 +14,10 @@ impl Plugin for CirclePlugin {
         app
             .add_plugin(MaterialPlugin::<flesh::FleshCircleMaterial>::default())
             .add_plugin(MaterialPlugin::<bubbles::BubblesCircleMaterial>::default())
-            .add_system_set(
-                SystemSet::on_enter(crate::assets::GameState::Ready)
-                    .with_system(load_font_atlas))
-            .add_system_set(
-                SystemSet::on_update(crate::assets::GameState::Ready)
-                    .with_system(flesh::update_flesh_circles)
-                    .with_system(bubbles::update_bubbles_circles)
-                    .with_system(debug_circles));
+            .add_system(load_font_atlas.in_schedule(OnEnter(GameState::Ready)))
+            .add_system(flesh::update_flesh_circles.run_if(in_state(GameState::Ready)))
+            .add_system(bubbles::update_bubbles_circles.run_if(in_state(GameState::Ready)))
+            .add_system(debug_circles.run_if(in_state(GameState::Ready)));
     }
 }
 
@@ -37,7 +33,7 @@ pub fn load_font_atlas(
             color: Color::WHITE,
         },
     );
-    text_bundle.visibility = Visibility::INVISIBLE;
+    text_bundle.visibility = Visibility::Hidden;
     commands.spawn(text_bundle);
 }
 

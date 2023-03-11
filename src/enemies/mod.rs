@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::assets::GameState;
 
 pub mod halo;
 
@@ -8,9 +9,7 @@ impl Plugin for EnemiesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugin(crate::enemies::halo::HaloPlugin)
-            .add_system_set(
-                SystemSet::on_enter(crate::assets::GameState::Ready)
-                    .with_system(spawn_guys));
+            .add_system(spawn_guys.in_schedule(OnEnter(GameState::Ready)));
     }
 }
 

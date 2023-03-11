@@ -7,18 +7,22 @@ pub struct AssetsPlugin;
 impl Plugin for AssetsPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_state::<crate::assets::GameState>()
             .add_loading_state(
                 LoadingState::new(GameState::Loading)
-                    .continue_to_state(GameState::Ready)
-                    .with_collection::<ImageAssets>()
-                    .with_collection::<RoomAssets>()
-                    .with_collection::<FontAssets>())
-            .add_state(GameState::Loading);
+                    .continue_to_state(GameState::Ready))
+            .add_collection_to_loading_state::<_, ImageAssets>(GameState::Loading)
+            .add_collection_to_loading_state::<_, RoomAssets>(GameState::Loading)
+            .add_collection_to_loading_state::<_, FontAssets>(GameState::Loading);
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum GameState { Loading, Ready }
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Default, States)]
+pub enum GameState {
+    #[default]
+    Loading,
+    Ready,
+}
 
 #[derive(AssetCollection, Resource)]
 pub struct ImageAssets {

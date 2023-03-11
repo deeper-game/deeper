@@ -20,16 +20,20 @@
 
 use bevy::{
     core::cast_slice,
-    ecs::system::{Resource, lifetimeless::SRes, SystemParamItem},
+    ecs::change_detection::DetectChanges,
+    ecs::query::With,
+    ecs::system::{Query, Resource, lifetimeless::SRes, SystemParamItem},
     math::Vec2,
     prelude::{Commands, Entity, EventReader, Res, ResMut},
     render::{
         Extract,
-        render_phase::{EntityRenderCommand, RenderCommandResult, TrackedRenderPass},
+        render_phase::{
+            PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass
+        },
         render_resource::{BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, ShaderType},
         renderer::{RenderDevice, RenderQueue},
     },
-    window::WindowResized,
+    window::{PrimaryWindow, Window, WindowResized},
 };
 
 use crate::outline::OutlinePipeline;
@@ -55,9 +59,10 @@ pub(crate) struct DoubleReciprocalWindowSizeMeta {
 pub(crate) fn extract_window_size(
     mut commands: Commands,
     mut resized_events: Extract<EventReader<WindowResized>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     if let Some(size_change) = resized_events.iter().last() {
-        if size_change.id.is_primary() {
+        if let Ok(_) = windows.get(size_change.window.clone()) {
             let width = size_change.width;
             let height = size_change.height;
             commands.insert_resource(ExtractedWindowSize { width, height });
@@ -66,19 +71,21 @@ pub(crate) fn extract_window_size(
 }
 
 pub(crate) fn prepare_window_size(
-    window_size: Res<ExtractedWindowSize>,
+    optional_window_size: Option<Res<ExtractedWindowSize>>,
     window_size_meta: ResMut<DoubleReciprocalWindowSizeMeta>,
     render_queue: Res<RenderQueue>,
 ) {
-    if window_size.is_changed() {
-        let window_size_uniform = DoubleReciprocalWindowSizeUniform {
-            size: Vec2::new(2.0 / window_size.width, 2.0 / window_size.height),
-        };
-        render_queue.write_buffer(
-            &window_size_meta.buffer,
-            0,
-            cast_slice(&[window_size_uniform.size]),
-        )
+    if let Some(window_size) = optional_window_size {
+        if window_size.is_changed() {
+            let window_size_uniform = DoubleReciprocalWindowSizeUniform {
+                size: Vec2::new(2.0 / window_size.width, 2.0 / window_size.height),
+            };
+            render_queue.write_buffer(
+                &window_size_meta.buffer,
+                0,
+                cast_slice(&[window_size_uniform.size]),
+            )
+        }
     }
 }
 
@@ -101,12 +108,15 @@ pub(crate) fn queue_window_size_bind_group(
 }
 
 pub(crate) struct SetWindowSizeBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetWindowSizeBindGroup<I> {
+impl<const I: usize, P: PhaseItem> RenderCommand<P> for SetWindowSizeBindGroup<I> {
     type Param = SRes<DoubleReciprocalWindowSizeMeta>;
+    type ViewWorldQuery = ();
+    type ItemWorldQuery = ();
 
     fn render<'w>(
-        _view: Entity,
-        _item: Entity,
+        _item: &P,
+        _view: (),
+        _entity: (),
         window_size: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {

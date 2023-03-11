@@ -4,16 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "*"
-bevy_asset_loader = "*"
-bevy_egui = "*"
-bevy_rapier3d = { version = "*", features = ["serde-serialize", "enhanced-determinism"] }
-bevy_sprite3d = "*"
-bevy-inspector-egui = "*"
-bevy-scene-hook = "*"
+bevy = "0.10.*"
+bevy_asset_loader = "0.15.*"
+bevy_egui = "0.20.*"
+bevy_rapier3d = { version = "0.21.*", features = ["serde-serialize", "enhanced-determinism"] }
+bevy-inspector-egui = "0.18.*"
+bevy-scene-hook = "6.0.*"
 bitvec = "*"
-wgpu = "0.14.*"
-wgpu-types = "0.14.*"
+wgpu = "*"
+wgpu-types = "*"
 unicode-segmentation = "*"
 noto-sans-mono-bitmap = { version = "*", features = ["all"] }
 fraction = "*"
@@ -28,8 +27,8 @@ uuid = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bevy_dylib = "*"
-bevy = { version = "0.9.1", features = ["dynamic"] }
-#bevy = { version = "0.9.1", features = ["dynamic", "trace_tracy"] }
+bevy = { version = "0.10.*" } #, features = ["dynamic"] }
+#bevy = { version = "0.10.*", features = ["dynamic", "trace_tracy"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

@@ -17,6 +17,7 @@ use std::f32::consts::*;
 
 use bevy::input::mouse::MouseMotion;
 use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy::window::PrimaryWindow;
 use bevy_rapier3d::prelude::*;
 
 pub struct FpsControllerPlugin;
@@ -136,7 +137,7 @@ const ANGLE_EPSILON: f32 = 0.001953125;
 
 pub fn fps_controller_input(
     key_input: Res<Input<KeyCode>>,
-    mut windows: ResMut<Windows>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mut mouse_events: EventReader<MouseMotion>,
     mut query: Query<(&FpsController, &mut FpsControllerInput)>,
 ) {
@@ -144,8 +145,8 @@ pub fn fps_controller_input(
         if !controller.enable_input {
             continue;
         }
-        let window = windows.get_primary_mut().unwrap();
-        if window.is_focused() {
+        let window = windows.single_mut();
+        if window.focused {
             let mut mouse_delta = Vec2::ZERO;
             for mouse_event in mouse_events.iter() {
                 mouse_delta += mouse_event.delta;

@@ -9,8 +9,7 @@ pub struct InventoryPlugin;
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_system_set(SystemSet::on_update(GameState::Ready)
-                            .with_system(update_inventory));
+            .add_system(update_inventory.run_if(in_state(GameState::Ready)));
     }
 }
 
@@ -73,10 +72,10 @@ pub fn update_inventory(
     let mut inventory = inventories.single_mut();
     for (slot, mut image) in inventory_slots.iter_mut() {
         if inventory.map.contains_key(&slot.position) {
-            *image = UiImage(inventory.map[&slot.position]
-                             .item_type.icon(&images));
+            *image = UiImage::new(inventory.map[&slot.position]
+                                  .item_type.icon(&images));
         } else {
-            *image = UiImage(images.empty.clone());
+            *image = UiImage::new(images.empty.clone());
         }
     }
 }
