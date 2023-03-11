@@ -151,10 +151,7 @@ fn setup(
     let render_target = images.add(make_camera_image(1.0));
 
     let mut camera = Camera::default();
-    #[cfg(target_arch = "x86_64")]
-    {
-        camera.hdr = true;
-    }
+    camera.hdr = true;
 
     commands.spawn((
         Camera3dBundle {
