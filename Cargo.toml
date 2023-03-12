@@ -10,6 +10,7 @@ bevy_egui = "0.20.*"
 bevy_rapier3d = { version = "0.21.*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy-inspector-egui = "0.18.*"
 bevy-scene-hook = "6.0.*"
+rapier3d = "*"
 bitvec = "*"
 wgpu = "*"
 wgpu-types = "*"

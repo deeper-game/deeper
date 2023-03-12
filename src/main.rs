@@ -88,6 +88,8 @@ pub fn main() {
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_startup_system(setup)
+        .add_system(respawn
+                    .before(crate::fps_controller::fps_controller_input))
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
         .add_system(toggle_msaa)
@@ -634,4 +636,36 @@ fn spawn_projectiles(
                 ..default()
             }));
     }
+}
+
+fn respawn(
+    mut rapier_context: ResMut<RapierContext>,
+    mut logical_players: Query<(Entity, &mut Transform), With<LogicalPlayer>>,
+) {
+    for (entity, mut transform) in logical_players.iter_mut() {
+        if transform.translation.y < -20.0 {
+            println!("Teleporting back to spawn");
+            let new_pos = Vec3::new(0.0, 10.0, 0.0);
+                transform.translation = new_pos;
+            let iso = transform_to_iso(&transform,
+                                       rapier_context.physics_scale());
+            {
+                let h = rapier_context.entity2body().get(&entity).unwrap().clone();
+                rapier_context.bodies.get_mut(h).unwrap().set_position(iso, true);
+            }
+            {
+                let h = rapier_context.entity2collider().get(&entity).unwrap().clone();
+                rapier_context.colliders.get_mut(h).unwrap().set_position(iso);
+            }
+        }
+    }
+}
+
+use rapier3d::math::{Isometry, Real};
+
+pub fn transform_to_iso(transform: &Transform, physics_scale: Real) -> Isometry<Real> {
+    Isometry::from_parts(
+        (transform.translation / physics_scale).into(),
+        transform.rotation.into(),
+    )
 }

@@ -24,11 +24,14 @@ pub struct FpsControllerPlugin;
 
 impl Plugin for FpsControllerPlugin {
     fn build(&self, app: &mut App) {
-        // TODO: these need to be sequential (exclusive system set)
-        app.add_system(fps_controller_input)
-            .add_system(fps_controller_look)
-            .add_system(fps_controller_move)
-            .add_system(fps_controller_render);
+        app.add_systems(
+            (
+                fps_controller_input,
+                fps_controller_look,
+                fps_controller_move,
+                fps_controller_render,
+            ).chain()
+        );
     }
 }
 

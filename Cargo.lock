@@ -1541,6 +1541,7 @@ dependencies = [
  "num-traits",
  "petgraph",
  "rand",
+ "rapier3d",
  "thiserror",
  "unicode-segmentation",
  "uuid",
