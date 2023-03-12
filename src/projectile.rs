@@ -42,7 +42,7 @@ fn move_projectiles(
     player: Query<Entity, With<LogicalPlayer>>,
     mut hit_events: EventWriter<ProjectileImpact>,
 ) {
-    let player_entity = player.single();
+    let Ok(player_entity) = player.get_single() else { return; };
     for (projectile_entity, mut pose, projectile) in projectiles.iter_mut() {
         *pose =
             GlobalTransform::IDENTITY

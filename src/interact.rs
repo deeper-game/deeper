@@ -38,7 +38,7 @@ pub fn interact(
     mut screen_activated: ResMut<crate::crt::ScreenActivated>,
     mut controllers: Query<&mut FpsController>,
 ) {
-    let mut inventory = inventories.single_mut();
+    let Ok(mut inventory) = inventories.get_single_mut() else { return; };
     if mouse.just_pressed(MouseButton::Right) {
         if let Some(entity) = selected.entity {
             if let Ok(item) = items.get(entity) {
@@ -65,8 +65,8 @@ pub fn interaction_glow(
     camera: Query<&GlobalTransform, With<RenderPlayer>>,
     player: Query<Entity, With<LogicalPlayer>>,
 ) {
-    let camera_transform = camera.single();
-    let player_entity = player.single();
+    let Ok(camera_transform) = camera.get_single() else { return; };
+    let Ok(player_entity) = player.get_single() else { return; };
     if let Some((entity, toi)) = rapier_context.cast_ray(
         camera_transform.translation(), camera_transform.forward(), 2.0, false,
         QueryFilter::default().exclude_rigid_body(player_entity),

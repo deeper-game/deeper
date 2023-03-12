@@ -87,7 +87,7 @@ pub fn main() {
         .add_plugin(crate::add_bloom::AddBloomPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
-        .add_startup_system(setup)
+        .add_system(setup.in_schedule(OnEnter(GameState::Ready)))
         .add_system(respawn
                     .before(crate::fps_controller::fps_controller_input))
         .add_system(resize_camera_texture)
