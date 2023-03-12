@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, PrimaryWindow};
+use bevy::window::{CursorGrabMode, PrimaryWindow, WindowFocused};
 use bevy_egui::{egui, EguiContexts};
 use crate::fps_controller::FpsController;
 use crate::assets::{GameState, ImageAssets};
@@ -263,26 +263,45 @@ pub fn show_create_or_join(
 
 pub fn manage_cursor(
     ui_state: Res<UiState>,
-    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     btn: Res<Input<MouseButton>>,
     key: Res<Input<KeyCode>>,
     mut controllers: Query<&mut FpsController>,
+    mut focus_events: EventReader<WindowFocused>,
 ) {
     if ui_state.from_playing_game().is_some() {
-        let mut window = windows.single_mut();
+        let (window_entity, mut window) = windows.single_mut();
+        let mut grabbed = None;
         if btn.just_pressed(MouseButton::Left) {
-            window.cursor.grab_mode = CursorGrabMode::Locked;
-            window.cursor.visible = false;
-            for mut controller in &mut controllers {
-                controller.enable_input = true;
-            }
+            grabbed = Some(true);
+
         }
         if key.just_pressed(KeyCode::Escape) {
-            window.cursor.grab_mode = CursorGrabMode::None;
-            window.cursor.visible = true;
-            for mut controller in &mut controllers {
-                controller.enable_input = false;
+            grabbed = Some(false);
+        }
+        for focus_event in focus_events.iter() {
+            if focus_event.window == window_entity {
+                if !focus_event.focused {
+                    grabbed = Some(false);
+                }
             }
+        }
+        match grabbed {
+            Some(true) => {
+                window.cursor.grab_mode = CursorGrabMode::Locked;
+                window.cursor.visible = false;
+                for mut controller in &mut controllers {
+                    controller.enable_input = true;
+                }
+            },
+            Some(false) => {
+                window.cursor.grab_mode = CursorGrabMode::None;
+                window.cursor.visible = true;
+                for mut controller in &mut controllers {
+                    controller.enable_input = false;
+                }
+            },
+            None => {},
         }
     }
 }
