@@ -10,7 +10,7 @@ impl Plugin for AssetsPlugin {
             .add_state::<crate::assets::GameState>()
             .add_loading_state(
                 LoadingState::new(GameState::Loading)
-                    .continue_to_state(GameState::Ready))
+                    .continue_to_state(GameState::Matchmaking))
             .add_collection_to_loading_state::<_, ImageAssets>(GameState::Loading)
             .add_collection_to_loading_state::<_, RoomAssets>(GameState::Loading)
             .add_collection_to_loading_state::<_, FontAssets>(GameState::Loading);
@@ -21,6 +21,7 @@ impl Plugin for AssetsPlugin {
 pub enum GameState {
     #[default]
     Loading,
+    Matchmaking,
     Ready,
 }
 

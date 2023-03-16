@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
 //use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
+use bevy_ggrs::{Rollback, RollbackIdProvider};
 use crate::add_bloom::AddBloom;
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
@@ -23,6 +24,8 @@ use crate::fps_controller::{
 };
 use crate::importable_shaders::ImportableShader;
 
+pub mod checksum;
+pub mod netcode;
 pub mod postprocessing;
 pub mod terminal_key;
 pub mod key_translator;
@@ -67,6 +70,9 @@ pub fn main() {
         .add_plugin(bevy_egui::EguiPlugin)
         .add_plugin(bevy_mod_outline::OutlinePlugin)
         .add_plugin(bevy_mod_outline::AutoGenerateOutlineNormalsPlugin)
+        .add_plugin(crate::netcode::NetcodePlugin)
+        .insert_resource(crate::netcode::connect("testing", 2)) // FIXME
+        .add_system(crate::netcode::wait_for_players.run_if(in_state(GameState::Matchmaking))) // FIXME
         .add_plugin(crate::postprocessing::PostprocessingPlugin)
         .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
@@ -106,6 +112,7 @@ fn setup(
     mut pp_materials: ResMut<Assets<PostprocessingMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut windows: Query<&mut Window>,
+    mut rip: ResMut<RollbackIdProvider>,
     asset_server: Res<AssetServer>,
 ) {
     for mut window in windows.iter_mut() {
@@ -139,6 +146,7 @@ fn setup(
             ..default()
         },
         Inventory::new(),
+        Rollback::new(rip.next_id()),
     ));
 
     use bevy::core_pipeline::bloom::BloomSettings;

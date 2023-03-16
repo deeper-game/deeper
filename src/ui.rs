@@ -11,7 +11,6 @@ impl Plugin for UiPlugin {
         app
             .insert_resource(
                 UiState::PlayingGame(PlayingGameState {})
-                // TODO(taktoa): finish implementing multiplayer
                 // UiState::CreateOrJoin(CreateOrJoinState {
                 //     room_id: String::new(),
                 //     room_size: 2,
@@ -207,7 +206,9 @@ pub fn show_create_or_join(
                                 let uuid = uuid::Uuid::new_v4();
                                 state.room_id = format!("{}", uuid.simple());
                                 state.room_id.truncate(12);
-                                // TODO(taktoa): create matchbox socket
+                                commands.insert_resource(
+                                    crate::netcode::connect(&state.room_id,
+                                                            state.room_size));
                                 next_ui_state = Some(UiState::Lobby(LobbyState {
                                     room_id: state.room_id.clone(),
                                     room_size: state.room_size,
@@ -219,7 +220,9 @@ pub fn show_create_or_join(
                             ui.text_edit_singleline(&mut state.room_id);
                             let join = egui::Button::new("Join Lobby");
                             if ui.add(join).clicked() {
-                                // TODO(taktoa): create matchbox socket
+                                commands.insert_resource(
+                                    crate::netcode::connect(&state.room_id,
+                                                            state.room_size));
                                 next_ui_state = Some(UiState::Lobby(LobbyState {
                                     room_id: state.room_id.clone(),
                                     room_size: state.room_size,
