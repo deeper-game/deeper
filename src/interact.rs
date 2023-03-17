@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use bevy_mod_outline::OutlineVolume;
 use bevy_rapier3d::prelude::{RapierContext, Collider, QueryFilter};
 use crate::fps_controller::{FpsController, LogicalPlayer, RenderPlayer};
-use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 
 pub struct InteractPlugin;
@@ -59,8 +59,7 @@ pub fn interact(
 pub fn interaction_glow(
     rapier_context: Res<RapierContext>,
     mut selected: ResMut<Selected>,
-    mut outlines: ResMut<Assets<OutlineMaterial>>,
-    mut interactables: Query<&Handle<OutlineMaterial>,
+    mut interactables: Query<&mut OutlineVolume,
                              (With<GlobalTransform>, With<Collider>, With<Interactable>)>,
     camera: Query<&GlobalTransform, With<RenderPlayer>>,
     player: Query<Entity, With<LogicalPlayer>>,
@@ -73,21 +72,21 @@ pub fn interaction_glow(
     ) {
         if selected.entity != Some(entity) {
             if let Some(e) = selected.entity {
-                if let Ok(old_material) = interactables.get_mut(e) {
-                    outlines.get_mut(old_material).unwrap().width = 0.0;
+                if let Ok(mut volume) = interactables.get_mut(e) {
+                    volume.visible = false;
                 }
             }
             selected.entity = None;
 
-            if let Ok(new_material) = interactables.get(entity) {
-                outlines.get_mut(new_material).unwrap().width = 3.0;
+            if let Ok(mut volume) = interactables.get_mut(entity) {
+                volume.visible = true;
                 selected.entity = Some(entity);
             }
         }
     } else {
         if let Some(e) = selected.entity {
-            if let Ok(old_material) = interactables.get(e) {
-                outlines.get_mut(old_material).unwrap().width = 0.0;
+            if let Ok(mut volume) = interactables.get_mut(e) {
+                volume.visible = false;
             }
         }
         selected.entity = None;

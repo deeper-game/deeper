@@ -1093,6 +1093,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_outline"
+version = "0.4.0"
+source = "git+https://github.com/komadori/bevy_mod_outline.git#fc74926073fc455ec59091ec7c555cdf680e36db"
+dependencies = [
+ "bevy",
+ "bitfield",
+ "interpolation",
+ "thiserror",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1485,6 +1496,12 @@ checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "bitfield"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
 
 [[package]]
 name = "bitfield-rle"
@@ -2123,6 +2140,7 @@ dependencies = [
  "bevy_dylib",
  "bevy_egui",
  "bevy_ggrs",
+ "bevy_mod_outline",
  "bevy_rapier3d",
  "bitvec",
  "fraction",
@@ -3157,6 +3175,12 @@ dependencies = [
  "webrtc-srtp",
  "webrtc-util",
 ]
+
+[[package]]
+name = "interpolation"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b7357d2bbc5ee92f8e899ab645233e43d21407573cceb37fed8bc3dede2c02"
 
 [[package]]
 name = "io-kit-sys"

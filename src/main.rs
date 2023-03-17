@@ -15,7 +15,6 @@ use crate::add_bloom::AddBloom;
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
-use crate::outline::OutlineMaterial;
 use crate::inventory::{Inventory, InventoryItem, ItemType};
 use crate::postprocessing::PostprocessingMaterial;
 use crate::projectile::Projectile;
@@ -25,7 +24,6 @@ use crate::fps_controller::{
 use crate::importable_shaders::ImportableShader;
 
 pub mod postprocessing;
-pub mod outline;
 pub mod terminal_key;
 pub mod key_translator;
 pub mod magic;
@@ -67,10 +65,11 @@ pub fn main() {
         //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(bevy_scene_hook::HookPlugin)
         .add_plugin(bevy_egui::EguiPlugin)
+        .add_plugin(bevy_mod_outline::OutlinePlugin)
+        .add_plugin(bevy_mod_outline::AutoGenerateOutlineNormalsPlugin)
         .add_plugin(crate::postprocessing::PostprocessingPlugin)
         .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
-        .add_plugin(crate::outline::OutlinePlugin)
         .add_plugin(crate::assets::AssetsPlugin)
         .add_plugin(crate::ui::UiPlugin)
         .add_plugin(crate::inventory::InventoryPlugin)
@@ -508,7 +507,6 @@ fn spawn_level(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut images: ResMut<Assets<Image>>,
     rooms: Res<Assets<crate::room_loader::TextFile>>,
     image_assets: Res<crate::assets::ImageAssets>,
@@ -531,10 +529,18 @@ fn spawn_level(
             ..default()
         }))
         .insert(Collider::cuboid(0.025, 0.025, 0.025))
-        .insert(outlines.add(OutlineMaterial {
-            width: 0.,
-            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
-        }));
+        .insert(bevy_mod_outline::OutlineBundle {
+            outline: bevy_mod_outline::OutlineVolume {
+                colour: Color::WHITE,
+                width: 5.0,
+                ..default()
+            },
+            stencil: bevy_mod_outline::OutlineStencil {
+                offset: 0.0,
+                ..default()
+            },
+            ..default()
+        });
 
     commands.spawn((
         PbrBundle {

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use bevy_mod_outline::OutlineBundle;
 use bevy_rapier3d::prelude::Collider;
 use crate::interact::Interactable;
-use crate::outline::OutlineMaterial;
 use crate::key_translator::TranslatedKey;
 
 pub struct CrtPlugin;
@@ -25,7 +25,6 @@ fn create_screen(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut crt_materials: ResMut<Assets<CrtMaterial>>,
-    mut outlines: ResMut<Assets<OutlineMaterial>>,
     mut images: ResMut<Assets<Image>>,
     asset_server: Res<AssetServer>,
 ) {
@@ -56,10 +55,6 @@ fn create_screen(
         },
         Interactable,
         Collider::cuboid(0.125, 0.01, 0.125),
-        outlines.add(OutlineMaterial {
-            width: 0.,
-            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
-        }),
     ));
 }
 
