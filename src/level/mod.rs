@@ -77,7 +77,7 @@ impl std::hash::Hash for Vert {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct Map {
     pub room_boxes: Vec<AABB>,
     pub open_doorways: HashSet<Doorway>,

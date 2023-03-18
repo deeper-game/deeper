@@ -49,6 +49,7 @@ pub mod importable_shaders;
 pub mod explosion;
 pub mod trail;
 pub mod add_bloom;
+pub mod voxel_editor;
 
 pub fn main() {
     let mut default_plugins = DefaultPlugins.build();
@@ -90,11 +91,15 @@ pub fn main() {
         .add_plugin(crate::explosion::ExplosionPlugin)
         .add_plugin(crate::trail::TrailPlugin)
         .add_plugin(crate::add_bloom::AddBloomPlugin)
+        .add_plugin(crate::voxel_editor::VoxelEditorPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)
         .add_system(setup.in_schedule(OnEnter(GameState::Ready)))
-        .add_system(respawn
+        .add_system(respawn_falling
                     .before(crate::fps_controller::fps_controller_input))
+        .add_system(respawn
+                    .in_schedule(OnEnter(GameState::Ready))
+                    .after(spawn_level))
         .add_system(resize_camera_texture)
         .add_system(spawn_projectiles)
         .add_system(toggle_msaa)
@@ -105,6 +110,8 @@ pub fn main() {
         //.add_system(movement)
         .run();
 }
+
+
 
 fn setup(
     mut commands: Commands,
@@ -408,9 +415,9 @@ fn spawn_voxels(
 ) {
     let pos_to_transform = |pos: bevy::math::IVec3| -> Transform {
         // Annoying hack because camera position is weird
-        Transform::from_xyz(pos.x as f32 - 3.0,
-                            pos.y as f32 - 0.2,
-                            pos.z as f32 - 3.0)
+        Transform::from_xyz(pos.x as f32,
+                            pos.y as f32,
+                            pos.z as f32)
     };
     use crate::level::{self, voxel, UVRect};
     let mut map = level::Map::room_gluing(start_room, 20, rooms);
@@ -472,7 +479,7 @@ fn spawn_voxels(
         PbrBundle {
             mesh: meshes.add(map_mesh.clone()),
             material: brown1,
-            transform: pos_to_transform(IVec3::new(0, -4, 0)),
+            transform: pos_to_transform(IVec3::new(0, 0, 0)),
             ..default()
         },
         PartOfMap,
@@ -706,6 +713,26 @@ fn spawn_projectiles(
 }
 
 fn respawn(
+    mut rapier_context: ResMut<RapierContext>,
+    mut logical_players: Query<(Entity, &mut Transform), With<LogicalPlayer>>,
+) {
+    for (entity, mut transform) in logical_players.iter_mut() {
+        let new_pos = Vec3::new(0.0, 10.0, 0.0);
+        transform.translation = new_pos;
+        let iso = transform_to_iso(&transform,
+                                   rapier_context.physics_scale());
+        {
+            let h = rapier_context.entity2body().get(&entity).unwrap().clone();
+            rapier_context.bodies.get_mut(h).unwrap().set_position(iso, true);
+        }
+        {
+            let h = rapier_context.entity2collider().get(&entity).unwrap().clone();
+            rapier_context.colliders.get_mut(h).unwrap().set_position(iso);
+        }
+    }
+}
+
+fn respawn_falling(
     mut rapier_context: ResMut<RapierContext>,
     mut logical_players: Query<(Entity, &mut Transform), With<LogicalPlayer>>,
 ) {
