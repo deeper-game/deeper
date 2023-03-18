@@ -31,8 +31,8 @@ uuid = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bevy_dylib = "*"
-bevy = { version = "0.10.*" } #, features = ["dynamic"] }
-#bevy = { version = "0.10.*", features = ["dynamic", "trace_tracy"] }
+bevy = { version = "0.10.*", features = ["dynamic_linking"] }
+#bevy = { version = "0.10.*", features = ["dynamic_linking", "trace_tracy"] }
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
