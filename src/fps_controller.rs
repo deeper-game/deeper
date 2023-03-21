@@ -20,6 +20,8 @@ use bevy::{math::Vec3Swizzles, prelude::*};
 use bevy::window::PrimaryWindow;
 use bevy_rapier3d::prelude::*;
 
+use serde::{Deserialize, Serialize};
+
 pub struct FpsControllerPlugin;
 
 impl Plugin for FpsControllerPlugin {
@@ -46,7 +48,7 @@ pub struct LogicalPlayer(pub u8);
 #[derive(Component)]
 pub struct RenderPlayer(pub u8);
 
-#[derive(Clone, Default, Component, Reflect, PartialEq)]
+#[derive(Clone, Default, Debug, Component, PartialEq, Deserialize, Serialize)]
 pub struct FpsControllerInput {
     pub fly: bool,
     pub sprint: bool,
@@ -139,7 +141,6 @@ impl Default for FpsController {
 const ANGLE_EPSILON: f32 = 0.001953125;
 
 pub fn fps_controller_input(
-    inputs: Option<Res<bevy_ggrs::PlayerInputs<crate::netcode::GGRSConfig>>>,
     key_input: Res<Input<KeyCode>>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
     mut mouse_events: EventReader<MouseMotion>,
@@ -162,28 +163,10 @@ pub fn fps_controller_input(
             input.yaw = input.yaw - mouse_delta.x;
         }
 
-        let mut key_input_mod = key_input.clone();
-        if let Some(ref inputs) = inputs {
-            for (net_input, _) in inputs.iter() {
-                if (net_input.keys & crate::netcode::INPUT_UP) != 0 {
-                    key_input_mod.press(KeyCode::W);
-                }
-                if (net_input.keys & crate::netcode::INPUT_LEFT) != 0 {
-                    key_input_mod.press(KeyCode::A);
-                }
-                if (net_input.keys & crate::netcode::INPUT_DOWN) != 0 {
-                    key_input_mod.press(KeyCode::S);
-                }
-                if (net_input.keys & crate::netcode::INPUT_RIGHT) != 0 {
-                    key_input_mod.press(KeyCode::D);
-                }
-            }
-        }
-
         input.movement = Vec3::new(
-            get_axis(&key_input_mod, controller.key_right, controller.key_left),
-            get_axis(&key_input_mod, controller.key_up, controller.key_down),
-            get_axis(&key_input_mod, controller.key_forward, controller.key_back),
+            get_axis(&key_input, controller.key_right, controller.key_left),
+            get_axis(&key_input, controller.key_up, controller.key_down),
+            get_axis(&key_input, controller.key_forward, controller.key_back),
         );
         input.sprint = key_input.pressed(controller.key_sprint);
         input.jump = key_input.pressed(controller.key_jump);
@@ -404,9 +387,9 @@ fn get_axis(key_input: &Input<KeyCode>, key_pos: KeyCode, key_neg: KeyCode) -> f
 pub fn fps_controller_render(
     logical_query: Query<
         (&Transform, &Collider, &FpsController, &LogicalPlayer),
-        With<LogicalPlayer>,
     >,
-    mut render_query: Query<(&mut Transform, &RenderPlayer), Without<LogicalPlayer>>,
+    mut render_query: Query<(&mut Transform, &RenderPlayer),
+                            Without<LogicalPlayer>>,
 ) {
     // TODO: inefficient O(N^2) loop, use hash map?
     for (logical_transform, collider, controller, logical_player_id) in logical_query.iter() {

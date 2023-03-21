@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowFocused};
 use bevy_egui::{egui, EguiContexts};
-use crate::fps_controller::FpsController;
 use crate::assets::{GameState, ImageAssets};
+use crate::fps_controller::FpsController;
+use crate::netcode::Peer;
 
 pub struct UiPlugin;
 
@@ -269,7 +270,7 @@ pub fn manage_cursor(
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     btn: Res<Input<MouseButton>>,
     key: Res<Input<KeyCode>>,
-    mut controllers: Query<&mut FpsController>,
+    mut controllers: Query<&mut FpsController, Without<Peer>>,
     mut focus_events: EventReader<WindowFocused>,
 ) {
     if ui_state.from_playing_game().is_some() {

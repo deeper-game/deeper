@@ -1,4 +1,6 @@
 use crate::assets::{GameState, FontAssets};
+use crate::fps_controller::RenderPlayer;
+use crate::netcode::Peer;
 use bevy::prelude::*;
 use bevy::text::*;
 use bevy_rapier3d::prelude::RapierContext;
@@ -45,7 +47,7 @@ pub fn debug_circles(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut flesh_circle_materials: ResMut<Assets<flesh::FleshCircleMaterial>>,
     mut bubbles_circle_materials: ResMut<Assets<bubbles::BubblesCircleMaterial>>,
-    camera: Query<&Transform, With<crate::fps_controller::RenderPlayer>>,
+    camera: Query<&Transform, (With<RenderPlayer>, Without<Peer>)>,
 
     rapier_context: Res<RapierContext>,
 

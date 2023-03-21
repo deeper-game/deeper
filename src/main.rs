@@ -11,12 +11,12 @@ use bevy::prelude::*;
 use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
 //use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
-use bevy_ggrs::{Rollback, RollbackIdProvider};
 use crate::add_bloom::AddBloom;
 use crate::assets::GameState;
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
 use crate::inventory::{Inventory, InventoryItem, ItemType};
+use crate::netcode::{NetcodeIdProvider, Session, Peer};
 use crate::postprocessing::PostprocessingMaterial;
 use crate::projectile::Projectile;
 use crate::fps_controller::{
@@ -61,6 +61,7 @@ pub fn main() {
     }
 
     App::new()
+        .insert_resource(FixedTime::new_from_secs(1.0))
         .insert_resource(Msaa::Sample4)
         .add_plugins(default_plugins)
         .insert_resource(RapierConfiguration::default())
@@ -71,8 +72,7 @@ pub fn main() {
         .add_plugin(bevy_mod_outline::OutlinePlugin)
         .add_plugin(bevy_mod_outline::AutoGenerateOutlineNormalsPlugin)
         .add_plugin(crate::netcode::NetcodePlugin)
-        .insert_resource(crate::netcode::connect("testing", 2)) // FIXME
-        .add_system(crate::netcode::wait_for_players.run_if(in_state(GameState::Matchmaking))) // FIXME
+        .insert_resource(crate::netcode::connect("testing", 1)) // FIXME
         .add_plugin(crate::postprocessing::PostprocessingPlugin)
         .add_plugin(crate::room_loader::TxtPlugin)
         .add_plugin(crate::fps_controller::FpsControllerPlugin)
@@ -109,10 +109,12 @@ pub fn main() {
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut pp_materials: ResMut<Assets<PostprocessingMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut windows: Query<&mut Window>,
-    mut rip: ResMut<RollbackIdProvider>,
+    session: Res<Session>,
+    mut nip: ResMut<NetcodeIdProvider>,
     asset_server: Res<AssetServer>,
 ) {
     for mut window in windows.iter_mut() {
@@ -122,16 +124,20 @@ fn setup(
     commands.spawn(ImportableShader::new("animation"));
 
     commands.spawn((
-        Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
-        ActiveEvents::COLLISION_EVENTS,
-        Velocity::zero(),
-        RigidBody::Dynamic,
-        Sleeping::disabled(),
-        LockedAxes::ROTATION_LOCKED,
-        AdditionalMassProperties::Mass(1.0),
-        GravityScale(0.0),
-        Ccd { enabled: true },
-        Transform::from_xyz(10.0, 10.0, 10.0),
+        (
+            Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
+            CollisionGroups::new(Group::from_bits(1u32).unwrap(),
+                                 Group::from_bits(1u32).unwrap()),
+            ActiveEvents::COLLISION_EVENTS,
+            Velocity::zero(),
+            RigidBody::Dynamic,
+            Sleeping::disabled(),
+            LockedAxes::ROTATION_LOCKED,
+            AdditionalMassProperties::Mass(1.0),
+            GravityScale(0.0),
+            Ccd { enabled: true },
+        ),
+        Transform::default(),
         LogicalPlayer(0),
         FpsControllerInput {
             pitch: -TAU / 12.0,
@@ -146,8 +152,56 @@ fn setup(
             ..default()
         },
         Inventory::new(),
-        Rollback::new(rip.next_id()),
+        nip.next(),
     ));
+
+    let player_mesh = meshes.add(Mesh::from(shape::Cube { size: 0.5 }));
+    for (i, peer) in session.info.as_ref().unwrap().peers().iter().enumerate() {
+        info!("Spawning player {}: {:?}", i + 1, peer);
+        assert!(i < 30);
+        commands.spawn((
+            (
+                Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
+                CollisionGroups::new(Group::from_bits(1u32 << (i + 1)).unwrap(),
+                                     Group::from_bits(1u32 << (i + 1)).unwrap()),
+                ActiveEvents::COLLISION_EVENTS,
+                Velocity::zero(),
+                RigidBody::Dynamic,
+                Sleeping::disabled(),
+                LockedAxes::ROTATION_LOCKED,
+                AdditionalMassProperties::Mass(1.0),
+                GravityScale(0.0),
+                Ccd { enabled: true },
+            ),
+            Transform::default(),
+            LogicalPlayer((i as u8) + 1),
+            FpsControllerInput {
+                pitch: -TAU / 12.0,
+                yaw: TAU * 5.0 / 8.0,
+                ..default()
+            },
+            FpsController {
+                enable_input: false,
+                ..default()
+            },
+            peer.clone(),
+        ));
+
+        commands.spawn((
+            RenderPlayer((i as u8) + 1),
+            nip.next(),
+            peer.clone(),
+            PbrBundle {
+                mesh: player_mesh.clone(),
+                material: materials.add(StandardMaterial {
+                    base_color: Color::rgb(1.0, 0.2, 0.2),
+                    ..default()
+                }),
+                // transform: Transform::from_xyz(10.0, 10.0, 10.0),
+                ..default()
+            },
+        ));
+    }
 
     use bevy::core_pipeline::bloom::BloomSettings;
     use bevy::render::camera::RenderTarget;
@@ -168,7 +222,6 @@ fn setup(
             //     clear_color: ClearColorConfig::Custom(Color::WHITE),
             //     ..default()
             // },
-            transform: Transform::from_xyz(10.0, 10.0, 10.0),
             camera: Camera {
                 target: RenderTarget::Image(render_target.clone()),
                 ..camera.clone()
