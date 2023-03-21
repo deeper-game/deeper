@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use bevy_rapier3d::{prelude::Sleeping, dynamics::Velocity};
 use bevy::tasks::IoTaskPool;
-use bevy_ggrs::ggrs::{SessionBuilder, Config, PlayerHandle};
 use matchbox_socket::WebRtcSocket;
 use serde::{Serialize, Deserialize};
 use bytemuck::{Pod, Zeroable};
