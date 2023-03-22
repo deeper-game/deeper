@@ -18,14 +18,31 @@ impl Plugin for NetcodePlugin {
             .insert_resource(Session::default())
             .insert_resource(ServerName::default())
             .insert_resource(NetcodeIdProvider::default())
+            .insert_resource(PeerFrames::default())
             .add_system(wait_for_players
                         .run_if(in_state(GameState::Matchmaking)))
             .add_system(handle_messages)
             .add_system(send_inputs.run_if(in_state(GameState::Ready)))
             .add_system(broadcast_state
                         .in_schedule(CoreSchedule::FixedUpdate)
+                        .run_if(in_state(GameState::Ready)))
+            .add_system(increment_frame
                         .run_if(in_state(GameState::Ready)));
     }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct FrameNumber(u16);
+
+impl FrameNumber {
+    pub fn is_after(x: Self, y: Self) -> bool {
+        (x.0 - y.0) < 1024
+    }
+}
+
+#[derive(Clone, Debug, Default, Resource)]
+pub struct PeerFrames {
+    pub frames: HashMap<Peer, FrameNumber>,
 }
 
 #[derive(
@@ -40,11 +57,13 @@ pub struct Peer {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientInput {
     input: crate::fps_controller::FpsControllerInput,
+    frame: FrameNumber,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerState {
     player_transforms: Vec<Transform>,
+    frame: FrameNumber,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,11 +180,29 @@ pub fn wait_for_players(
     }
 }
 
+pub fn increment_frame(
+    session: Res<Session>,
+    mut frames: ResMut<PeerFrames>,
+) {
+    let Some(info) = &session.info else {
+        return;
+    };
+
+    let new = FrameNumber(
+        if let Some(old) = frames.frames.get(&info.id()) {
+            old.0.wrapping_add(1)
+        } else {
+            0
+        });
+    frames.frames.insert(info.id(), new);
+}
+
 pub fn handle_messages(
     mut commands: Commands,
     mut session: ResMut<Session>,
     mut server_name: ResMut<ServerName>,
     mut fps_controller_inputs: Query<(&Peer, &mut FpsControllerInput)>,
+    mut frames: ResMut<PeerFrames>,
 ) {
     let Some(info) = &mut session.info else {
         return;
@@ -175,7 +212,13 @@ pub fn handle_messages(
     for (peer, message) in info.receive() {
         match message {
             Message::ClientInput(input) => {
-                inputs.insert(peer, input);
+                if let Some(current_input) = inputs.get(&peer) {
+                    if FrameNumber::is_after(input.frame, current_input.frame) {
+                        inputs.insert(peer, input);
+                    }
+                } else {
+                    inputs.insert(peer, input);
+                }
             },
             Message::ServerState(state) => {},
         }
@@ -183,8 +226,13 @@ pub fn handle_messages(
 
     for (peer, mut fps_controller_input) in fps_controller_inputs.iter_mut() {
         if let Some(input) = inputs.get(peer) {
-            debug!("Updating input for {:?}", peer);
-            *fps_controller_input = input.input.clone();
+            if FrameNumber::is_after(input.frame,
+                                     frames.frames.get(&peer)
+                                     .unwrap_or(&FrameNumber(0)).clone()) {
+                debug!("Updating input for {:?}", peer);
+                *fps_controller_input = input.input.clone();
+                frames.frames.insert(peer.clone(), input.frame);
+            }
         }
     }
 }
@@ -194,29 +242,31 @@ pub fn send_inputs(
     server_name: Res<ServerName>,
     fps_controller_input: Query<&FpsControllerInput,
                                 (Without<Peer>, Changed<FpsControllerInput>)>,
+    frames: Res<PeerFrames>,
 ) {
     let Some(info) = &mut session.info else {
-        return;
-    };
-    if server_name.is_self {
-        return;
-    }
-    let Some(server) = &server_name.name else {
         return;
     };
     let Ok(input) = fps_controller_input.get_single() else {
         return;
     };
 
-    info.broadcast(&Message::ClientInput(ClientInput {
-        input: input.clone(),
-    }));
+    if let Some(frame) = frames.frames.get(&info.id()) {
+        let spam_coefficient = 3;
+        for _ in 0 .. spam_coefficient {
+            info.broadcast(&Message::ClientInput(ClientInput {
+                input: input.clone(),
+                frame: frame.clone(),
+            }));
+        }
+    }
 }
 
 pub fn broadcast_state(
     mut session: ResMut<Session>,
     server_name: Res<ServerName>,
     players: Query<(&Transform, Option<&Peer>, &LogicalPlayer)>,
+    frames: Res<PeerFrames>,
 ) {
     let Some(info) = &mut session.info else {
         return;
@@ -249,13 +299,16 @@ pub fn broadcast_state(
         player_transforms[index] = transform.clone();
     }
 
-    let server_state = ServerState {
-        player_transforms,
-    };
+    if let Some(frame) = frames.frames.get(&info.id()) {
+        let server_state = ServerState {
+            player_transforms,
+            frame: frame.clone(),
+        };
 
-    info!("Broadcasting current state: {:?}", server_state);
+        info!("Broadcasting current state: {:?}", server_state);
 
-    info.broadcast(&Message::ServerState(server_state));
+        info.broadcast(&Message::ServerState(server_state));
+    }
 }
 
 #[derive(Component)]
