@@ -18,7 +18,6 @@ impl Plugin for NetcodePlugin {
             .insert_resource(Session::default())
             .insert_resource(ServerName::default())
             .insert_resource(NetcodeIdProvider::default())
-            .insert_resource(WaitingForPeers(Timer::from_seconds(0.8, TimerMode::Once)))
             .add_system(wait_for_players
                         .run_if(in_state(GameState::Matchmaking)))
             .add_system(handle_messages)
@@ -28,9 +27,6 @@ impl Plugin for NetcodePlugin {
                         .run_if(in_state(GameState::Ready)));
     }
 }
-
-#[derive(Resource)]
-pub struct WaitingForPeers(Timer);
 
 #[derive(
     Clone, Debug,
@@ -53,8 +49,6 @@ pub struct ServerState {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
-    FindServerRequest,
-    FindServerReply(Peer),
     ClientInput(ClientInput),
     ServerState(ServerState),
 }
@@ -113,7 +107,6 @@ impl SessionInfo {
 pub struct ServerName {
     name: Option<Peer>,
     is_self: bool,
-    waiting_for_reply: Option<Timer>,
 }
 
 #[derive(Default, Resource)]
@@ -142,52 +135,29 @@ pub fn wait_for_players(
     mut session: ResMut<Session>,
     mut server_name: ResMut<ServerName>,
     mut state: ResMut<NextState<crate::assets::GameState>>,
-    mut waiting_for_peers: ResMut<WaitingForPeers>,
     time: Res<Time>,
 ) {
     let Some(info) = &mut session.info else {
         return;
     };
 
-    if !waiting_for_peers.0.finished() {
-        waiting_for_peers.0.tick(time.delta());
-        info.socket.accept_new_connections();
-        return;
-    }
-
     {
         info.socket.accept_new_connections();
         let players = info.socket.connected_peers();
-
-        if players.is_empty() {
-            server_name.name = Some(Peer { id: info.socket.id().clone() });
-            server_name.is_self = true;
-            server_name.waiting_for_reply = None;
-        }
 
         if players.len() < info.room_size - 1 {
             return;
         }
     }
 
-    if server_name.name.is_some() {
-        println!("Server name is {:?}, my name is {:?}",
-                 server_name, info.socket.id());
-        state.set(crate::assets::GameState::Ready);
-        return;
-    }
-    if let Some(ref mut timer) = &mut server_name.waiting_for_reply {
-        timer.tick(time.delta());
-        if !timer.finished() {
-            return;
-        }
-    }
     let mut peers = info.peers();
     peers.sort_unstable();
     if let Some(peer) = peers.first() {
-        info.send(peer, &Message::FindServerRequest);
-        server_name.waiting_for_reply =
-            Some(Timer::from_seconds(0.02, TimerMode::Once));
+        server_name.name = Some(std::cmp::min(info.id(), peer.clone()));
+        server_name.is_self = info.id() < peer.clone();
+        println!("Server name is {:?}, my name is {:?}",
+                 server_name, info.id());
+        state.set(crate::assets::GameState::Ready);
     }
 }
 
@@ -204,16 +174,6 @@ pub fn handle_messages(
     let mut inputs = HashMap::<Peer, ClientInput>::new();
     for (peer, message) in info.receive() {
         match message {
-            Message::FindServerRequest => {
-                if let Some(name) = &server_name.name {
-                    info.send(&peer, &Message::FindServerReply(name.clone()));
-                }
-            },
-            Message::FindServerReply(server) => {
-                server_name.name = Some(server);
-                server_name.is_self = false;
-                server_name.waiting_for_reply = None;
-            },
             Message::ClientInput(input) => {
                 inputs.insert(peer, input);
             },
