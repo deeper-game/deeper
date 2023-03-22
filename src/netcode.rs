@@ -187,7 +187,7 @@ pub fn wait_for_players(
     if let Some(peer) = peers.first() {
         info.send(peer, &Message::FindServerRequest);
         server_name.waiting_for_reply =
-            Some(Timer::from_seconds(0.2, TimerMode::Once));
+            Some(Timer::from_seconds(0.02, TimerMode::Once));
     }
 }
 
