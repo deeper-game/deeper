@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::ecs::query::QuerySingleError;
+use crate::assets::GameState;
 use crate::fps_controller::RenderPlayer;
 
 pub struct VoxelEditorPlugin;
@@ -8,7 +9,7 @@ impl Plugin for VoxelEditorPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(VoxelEditor { enabled: true })
-            .add_system(ghost_block);
+            .add_system(ghost_block.run_if(in_state(GameState::Ready)));
     }
 }
 

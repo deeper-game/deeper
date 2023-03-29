@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::input::mouse::{MouseWheel, MouseScrollUnit};
 use bevy::window::{CursorGrabMode, PrimaryWindow, WindowFocused};
 use bevy_egui::{egui, EguiContexts};
 use crate::assets::{GameState, ImageAssets};
@@ -11,7 +12,9 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(
-                UiState::PlayingGame(PlayingGameState {})
+                UiState::PlayingGame(PlayingGameState {
+                    inventory_visible: false,
+                })
                 // UiState::CreateOrJoin(CreateOrJoinState {
                 //     room_id: String::new(),
                 //     room_size: 2,
@@ -20,7 +23,14 @@ impl Plugin for UiPlugin {
             .add_system(manage_cursor)
             .add_system(show_create_or_join)
             .add_system(show_crosshair.in_schedule(OnEnter(GameState::Ready)))
-            .add_system(show_inventory.in_schedule(OnEnter(GameState::Ready)));
+            .add_system(show_inventory.in_schedule(OnEnter(GameState::Ready)))
+            .add_system(inventory
+                        .run_if(in_state(GameState::Ready))
+                        .after(show_inventory))
+            .add_system(show_hotbar.in_schedule(OnEnter(GameState::Ready)))
+            .add_system(hotbar
+                        .run_if(in_state(GameState::Ready))
+                        .after(show_hotbar));
     }
 }
 
@@ -38,6 +48,7 @@ pub struct LobbyState {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PlayingGameState {
+    inventory_visible: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -91,6 +102,14 @@ pub struct InventorySlot {
     pub position: InventoryPosition,
 }
 
+#[derive(Component)]
+pub struct HotbarSlot {
+    pub position: usize,
+}
+
+#[derive(Resource)]
+pub struct ActiveHotbarSlot(Entity);
+
 pub fn show_crosshair(
     mut commands: Commands,
     images: Res<ImageAssets>,
@@ -118,6 +137,9 @@ pub fn show_crosshair(
         });
 }
 
+#[derive(Component)]
+pub struct InventoryRoot;
+
 pub fn show_inventory(
     images: Res<ImageAssets>,
     mut commands: Commands,
@@ -133,6 +155,7 @@ pub fn show_inventory(
             },
             ..default()
         })
+        .insert(InventoryRoot)
         .with_children(|parent| {
             parent.spawn(NodeBundle {
                 style: Style {
@@ -175,6 +198,123 @@ pub fn show_inventory(
                 }
             });
         });
+}
+
+pub fn inventory(
+    ui_state: Res<UiState>,
+    mut inventory: Query<&mut Visibility, With<InventoryRoot>>,
+) {
+    if let UiState::PlayingGame(ref pgs) = *ui_state {
+        *inventory.single_mut() =
+            if pgs.inventory_visible {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+    }
+}
+
+pub fn show_hotbar(
+    images: Res<ImageAssets>,
+    mut commands: Commands,
+) {
+    commands
+        .spawn(NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                align_items: AlignItems::FlexEnd,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn(NodeBundle {
+                style: Style {
+                    size: Size {
+                        width: Val::Px(257.0),
+                        height: Val::Px(33.0),
+                    },
+                    flex_wrap: FlexWrap::Wrap,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgb(0.65, 0.65, 0.65).into(),
+                ..default()
+            }).with_children(|parent| {
+                for i in 0 .. 8 {
+                    parent.spawn(NodeBundle {
+                        style: Style {
+                            margin: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                        ..default()
+                    }).with_children(|parent| {
+                        let mut ecmds = parent.spawn(ImageBundle {
+                            style: Style {
+                                size: Size {
+                                    width: Val::Px(28.0),
+                                    height: Val::Px(28.0),
+                                },
+                                ..default()
+                            },
+                            image: UiImage::new(images.empty.clone()),
+                            ..default()
+                        });
+                        ecmds.insert(HotbarSlot { position: i });
+                        if i == 0 {
+                            let entity = ecmds.id().clone();
+                            ecmds.commands()
+                                .insert_resource(ActiveHotbarSlot(entity));
+                        }
+                    });
+                }
+            });
+        });
+}
+
+pub fn hotbar(
+    mut commands: Commands,
+    mut active_slot: ResMut<ActiveHotbarSlot>,
+    mut slot_surrounds: Query<&mut BackgroundColor>,
+    slots: Query<(Entity, &Parent, &HotbarSlot)>,
+    mut scroll_events: EventReader<MouseWheel>,
+) {
+    let mut scroll_amount: i32 = 0;
+    for event in scroll_events.iter() {
+        match event.unit {
+            MouseScrollUnit::Line => {
+                scroll_amount += f32::round(event.y) as i32;
+            },
+            MouseScrollUnit::Pixel => {
+                scroll_amount += f32::round(event.y * 3.0) as i32;
+            },
+        }
+    }
+    scroll_amount *= -1;
+    if scroll_amount != 0 {
+        let mut current_slot = 0;
+        for (entity, _, hotbar_slot) in slots.iter() {
+            if entity == active_slot.0 {
+                current_slot = hotbar_slot.position as i32;
+            }
+        }
+        let new_slot = (current_slot + scroll_amount).clamp(0, 7) as usize;
+        for (entity, parent, hotbar_slot) in slots.iter() {
+            if new_slot == hotbar_slot.position {
+                active_slot.0 = entity;
+            }
+            *slot_surrounds.get_mut(parent.get()).unwrap() =
+                if new_slot == hotbar_slot.position {
+                    Color::rgb(0.6, 0.6, 0.6).into()
+                } else {
+                    Color::rgb(0.4, 0.4, 0.4).into()
+                };
+        }
+    }
 }
 
 pub fn show_create_or_join(
@@ -248,6 +388,7 @@ pub fn show_create_or_join(
                     });
                     if full {
                         next_ui_state = Some(UiState::PlayingGame(PlayingGameState {
+                            inventory_visible: false,
                         }));
                     }
                     // let start = egui::Button::new("Start Game");
