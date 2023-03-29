@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-use bevy_rapier3d::{prelude::Sleeping, dynamics::Velocity};
+use bevy_rapier3d::{
+    prelude::{RapierContext, Sleeping},
+    dynamics::Velocity,
+};
 use bevy::tasks::IoTaskPool;
 use matchbox_socket::WebRtcSocket;
 use serde::{Serialize, Deserialize};
@@ -54,13 +57,19 @@ pub struct Peer {
     pub id: String
 }
 
+#[derive(Resource)]
+pub struct ClientInputBuffer {
+    buffer: HashMap<Peer, HashMap<FrameNumber, ClientInput>>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClientInput {
     input: crate::fps_controller::FpsControllerInput,
     frame: FrameNumber,
+    // inputs: Vec<(FrameNumber, crate::fps_controller::FpsControllerInput)>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerState {
     player_transforms: Vec<Transform>,
     frame: FrameNumber,
@@ -210,6 +219,8 @@ pub fn handle_messages(
     mut server_name: ResMut<ServerName>,
     mut fps_controller_inputs: Query<(&Peer, &mut FpsControllerInput)>,
     mut frames: ResMut<PeerFrames>,
+    mut rapier_context: ResMut<RapierContext>,
+    mut logical_players: Query<(Entity, &mut Transform, Option<&Peer>), With<LogicalPlayer>>,
 ) {
     let Some(info) = &mut session.info else {
         return;
@@ -227,7 +238,16 @@ pub fn handle_messages(
                     inputs.insert(peer, input);
                 }
             },
-            Message::ServerState(state) => {},
+            Message::ServerState(state) => {
+                if let Some(name) = &server_name.name {
+                    if let Some(frame) = frames.frames.get(name) {
+                        if FrameNumber::is_after(state.frame, frame.clone()) {
+                            // rollback(&state, &info, &mut rapier_context,
+                            //          &mut logical_players);
+                        }
+                    }
+                }
+            },
         }
     }
 
@@ -242,6 +262,41 @@ pub fn handle_messages(
             }
         }
     }
+}
+
+pub fn rollback(
+    state: &ServerState,
+    session_info: &SessionInfo,
+    rapier_context: &mut ResMut<RapierContext>,
+    logical_players: &mut Query<(Entity, &mut Transform, Option<&Peer>), With<LogicalPlayer>>,
+) {
+    let mut peers = Vec::new();
+    peers.push(session_info.id());
+    for peer in session_info.peers() {
+        peers.push(peer);
+    }
+    peers.sort_unstable();
+
+    let mut peer_to_index = HashMap::new();
+    for i in 0 .. peers.len() {
+        peer_to_index.insert(peers[i].clone(), i);
+    }
+
+    for (entity, mut transform, optional_peer) in logical_players.iter_mut() {
+        let peer = optional_peer.cloned().unwrap_or(session_info.id());
+        let peer_index = peer_to_index.get(&peer).unwrap().clone();
+        *transform = state.player_transforms[peer_index];
+        let iso = crate::transform_to_iso(&transform, rapier_context.physics_scale());
+        {
+            let h = rapier_context.entity2body().get(&entity).unwrap().clone();
+            rapier_context.bodies.get_mut(h).unwrap().set_position(iso, true);
+        }
+        {
+            let h = rapier_context.entity2collider().get(&entity).unwrap().clone();
+            rapier_context.colliders.get_mut(h).unwrap().set_position(iso);
+        }
+    }
+
 }
 
 pub fn send_inputs(
@@ -259,7 +314,7 @@ pub fn send_inputs(
     };
 
     if let Some(frame) = frames.frames.get(&info.id()) {
-        let spam_coefficient = 3;
+        let spam_coefficient = 1;
         for _ in 0 .. spam_coefficient {
             info.broadcast(&Message::ClientInput(ClientInput {
                 input: input.clone(),
@@ -314,7 +369,10 @@ pub fn broadcast_state(
 
         info!("Broadcasting current state: {:?}", server_state);
 
-        info.broadcast(&Message::ServerState(server_state));
+        let spam_coefficient = 3;
+        for _ in 0 .. spam_coefficient {
+            info.broadcast(&Message::ServerState(server_state.clone()));
+        }
     }
 }
 
