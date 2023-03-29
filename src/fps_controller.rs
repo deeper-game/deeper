@@ -56,7 +56,37 @@ pub struct FpsControllerInput {
     pub crouch: bool,
     pub pitch: f32,
     pub yaw: f32,
-    pub movement: Vec3,
+    pub movement: u8,
+}
+
+impl FpsControllerInput {
+    pub fn movement(&self) -> Vec3 {
+        let sign_x = (self.movement & (1 << 0)) != 0;
+        let val_x = (self.movement & (1 << 1)) != 0;
+        let sign_y = (self.movement & (1 << 2)) != 0;
+        let val_y = (self.movement & (1 << 3)) != 0;
+        let sign_z = (self.movement & (1 << 4)) != 0;
+        let val_z = (self.movement & (1 << 5)) != 0;
+        Vec3::new(
+            (if sign_x { 1.0 } else { -1.0 }) * (if val_x { 1.0 } else { 0.0 }),
+            (if sign_y { 1.0 } else { -1.0 }) * (if val_y { 1.0 } else { 0.0 }),
+            (if sign_z { 1.0 } else { -1.0 }) * (if val_z { 1.0 } else { 0.0 }),
+        )
+    }
+
+    pub fn set_movement(&mut self, x: i32, y: i32, z: i32) {
+        assert!((x == -1) || (x == 0) || (x == 1));
+        assert!((y == -1) || (y == 0) || (y == 1));
+        assert!((z == -1) || (z == 0) || (z == 1));
+        let mut result = 0u8;
+        if x >= 0 { result |= 1 << 0; }
+        if x.abs() > 0 { result |= 1 << 1; }
+        if y >= 0 { result |= 1 << 2; }
+        if y.abs() > 0 { result |= 1 << 3; }
+        if z >= 0 { result |= 1 << 4; }
+        if z.abs() > 0 { result |= 1 << 5; }
+        self.movement = result;
+    }
 }
 
 #[derive(Component)]
@@ -163,7 +193,7 @@ pub fn fps_controller_input(
             input.yaw = input.yaw - mouse_delta.x;
         }
 
-        input.movement = Vec3::new(
+        input.set_movement(
             get_axis(&key_input, controller.key_right, controller.key_left),
             get_axis(&key_input, controller.key_up, controller.key_down),
             get_axis(&key_input, controller.key_forward, controller.key_back),
@@ -212,7 +242,7 @@ pub fn fps_controller_move(
 
         match controller.move_mode {
             MoveMode::Noclip => {
-                if input.movement == Vec3::ZERO {
+                if input.movement() == Vec3::ZERO {
                     let friction = controller.fly_friction.clamp(0.0, 1.0);
                     controller.velocity *= 1.0 - friction;
                     if controller.velocity.length_squared() < 1e-6 {
@@ -224,7 +254,8 @@ pub fn fps_controller_move(
                     } else {
                         controller.fly_speed
                     };
-                    controller.velocity = input.movement.normalize() * fly_speed;
+                    controller.velocity =
+                        input.movement().normalize() * fly_speed;
                 }
                 velocity.linvel = controller.velocity.x * right
                     + controller.velocity.y * Vec3::Y
@@ -262,8 +293,9 @@ pub fn fps_controller_move(
                         ground_hit = Some(hit);
                     }
 
-                    let mut wish_direction = input.movement.z * controller.forward_speed * forward
-                        + input.movement.x * controller.side_speed * right;
+                    let mut wish_direction =
+                        input.movement().z * controller.forward_speed * forward
+                        + input.movement().x * controller.side_speed * right;
                     let mut wish_speed = wish_direction.length();
                     if wish_speed > 1e-6 {
                         // Avoid division by zero
@@ -370,15 +402,15 @@ fn accelerate(wish_dir: Vec3, wish_speed: f32, accel: f32, dt: f32, velocity: &m
     velocity.z += wish_direction.z;
 }
 
-fn get_pressed(key_input: &Input<KeyCode>, key: KeyCode) -> f32 {
+fn get_pressed(key_input: &Input<KeyCode>, key: KeyCode) -> i32 {
     if key_input.pressed(key) {
-        1.0
+        1
     } else {
-        0.0
+        0
     }
 }
 
-fn get_axis(key_input: &Input<KeyCode>, key_pos: KeyCode, key_neg: KeyCode) -> f32 {
+fn get_axis(key_input: &Input<KeyCode>, key_pos: KeyCode, key_neg: KeyCode) -> i32 {
     get_pressed(key_input, key_pos) - get_pressed(key_input, key_neg)
 }
 
