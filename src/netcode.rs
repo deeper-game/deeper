@@ -169,6 +169,13 @@ pub fn wait_for_players(
         }
     }
 
+    if info.room_size == 1 {
+        server_name.name = Some(info.id());
+        server_name.is_self = true;
+        println!("Singleplayer mode, server is self");
+        state.set(crate::assets::GameState::Ready);
+    }
+
     let mut peers = info.peers();
     peers.sort_unstable();
     if let Some(peer) = peers.first() {
