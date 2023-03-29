@@ -111,14 +111,17 @@
       devShells.default = pkgs.devshell.mkShell {
         env = [
           {
-            name = "CARGO_LINKER";
-            value = "clang";
+            name = "CARGO_RUSTFLAGS";
+            value = std.string.concatSep " " [
+              "-Clink-arg=-fuse-ld=${makeLinkerPath code.linker}"
+              "-Zshare-generics=y"
+            ];
           }
 
           {
-            name = "CARGO_RUSTFLAGS";
+            name = "RUSTFLAGS";
             value = std.string.concatSep " " [
-              "-C link-arg=-fuse-ld=${makeLinkerPath code.linker}"
+              "-Clink-arg=-fuse-ld=${makeLinkerPath code.linker}"
               "-Zshare-generics=y"
             ];
           }

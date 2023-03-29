@@ -87,8 +87,8 @@ rec {
         --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [ pkgs.vulkan-loader ]}"
     '';
   }) // (if isLinux system && !(isArm64 system) then {
-    CARGO_LINKER = "clang";
-    CARGO_RUSTFLAGS = "-C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
+    CARGO_RUSTFLAGS = "-Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold -Zshare-generics=y";
+    RUSTFLAGS = "-Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold -Zshare-generics=y";
   } else {}));
 
   wasm = craneLibWasm.buildPackage (withCommonArgs {
