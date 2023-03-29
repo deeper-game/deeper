@@ -130,6 +130,8 @@ fn setup(
 
     commands.spawn(ImportableShader::new("animation"));
 
+    let spawn_point = Transform::from_xyz(10.0, 10.0, 10.0);
+
     commands.spawn((
         (
             Collider::capsule(Vec3::Y * 0.125, Vec3::Y * 0.375, 0.125),
@@ -144,7 +146,7 @@ fn setup(
             GravityScale(0.0),
             Ccd { enabled: true },
         ),
-        Transform::default(),
+        TransformBundle::from(spawn_point),
         LogicalPlayer(0),
         FpsControllerInput {
             pitch: -TAU / 12.0,
@@ -180,7 +182,7 @@ fn setup(
                 GravityScale(0.0),
                 Ccd { enabled: true },
             ),
-            Transform::default(),
+            TransformBundle::from(spawn_point),
             LogicalPlayer((i as u8) + 1),
             FpsControllerInput {
                 pitch: -TAU / 12.0,
@@ -204,10 +206,9 @@ fn setup(
                     base_color: Color::rgb(1.0, 0.2, 0.2),
                     ..default()
                 }),
-                // transform: Transform::from_xyz(10.0, 10.0, 10.0),
                 ..default()
             },
-        ));
+        )).insert(TransformBundle::from(spawn_point));
     }
 
     use bevy::core_pipeline::bloom::BloomSettings;
@@ -240,7 +241,7 @@ fn setup(
         RenderPlayer(0),
         BloomSettings::default(),
         UiCameraConfig { show_ui: false },
-    ));
+    )).insert(TransformBundle::from(spawn_point));
 
     let palette: Handle<Image> = asset_server.load("palette.png");
 
@@ -415,9 +416,9 @@ fn spawn_voxels(
 ) {
     let pos_to_transform = |pos: bevy::math::IVec3| -> Transform {
         // Annoying hack because camera position is weird
-        Transform::from_xyz(pos.x as f32,
-                            pos.y as f32,
-                            pos.z as f32)
+        Transform::from_xyz(pos.x as f32 - 0.5,
+                            pos.y as f32 - 0.5,
+                            pos.z as f32 - 0.5)
     };
     use crate::level::{self, voxel, UVRect};
     let mut map = level::Map::room_gluing(start_room, 20, rooms);
