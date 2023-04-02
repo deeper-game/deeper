@@ -1,3 +1,5 @@
+use bevy::math::Quat;
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Voxel {
     pub orientation: CardinalDir,
@@ -17,15 +19,49 @@ impl Default for Voxel {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CardinalDir {
+    #[default]
     East,
     North,
     West,
     South,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+impl CardinalDir {
+    // Rotate the cardinal direction counterclockwise by 90 degrees.
+    pub fn rotate_cw_90(&self) -> CardinalDir {
+        match *self {
+            CardinalDir::East => CardinalDir::South,
+            CardinalDir::North => CardinalDir::East,
+            CardinalDir::West => CardinalDir::North,
+            CardinalDir::South => CardinalDir::West,
+        }
+    }
+
+    // Rotate the cardinal direction counterclockwise by 90 degrees.
+    pub fn rotate_ccw_90(&self) -> CardinalDir {
+        match *self {
+            CardinalDir::East => CardinalDir::North,
+            CardinalDir::North => CardinalDir::West,
+            CardinalDir::West => CardinalDir::South,
+            CardinalDir::South => CardinalDir::East,
+        }
+    }
+
+    // Convert a cardinal direction to a rotation about the Y axis, where east
+    // is considered to be a 0 degree rotation.
+    pub fn as_rotation(&self) -> Quat {
+        Quat::from_rotation_y(match *self {
+            CardinalDir::East => 0.0,
+            CardinalDir::North => 1.0,
+            CardinalDir::West => 2.0,
+            CardinalDir::South => 3.0,
+        } * std::f32::consts::FRAC_PI_2)
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     East,
     North,
@@ -35,7 +71,7 @@ pub enum Direction {
     Up,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum VoxelShape {
     Air,
     Solid,
@@ -43,13 +79,13 @@ pub enum VoxelShape {
     Roof { slope: fraction::Fraction },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Texture {
     None,
     Stone,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Style {
     Normal,
 }

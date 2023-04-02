@@ -367,7 +367,9 @@ pub fn broadcast_state(
             frame: frame.clone(),
         };
 
-        info!("Broadcasting current state: {:?}", server_state);
+        if !info.peers().is_empty() {
+            info!("Broadcasting current state: {:?}", server_state);
+        }
 
         let spam_coefficient = 3;
         for _ in 0 .. spam_coefficient {

@@ -108,7 +108,10 @@ pub struct HotbarSlot {
 }
 
 #[derive(Resource)]
-pub struct ActiveHotbarSlot(Entity);
+pub struct ActiveHotbarSlot {
+    pub entity: Entity,
+    pub index: usize,
+}
 
 pub fn show_crosshair(
     mut commands: Commands,
@@ -250,7 +253,11 @@ pub fn show_hotbar(
                             margin: UiRect::all(Val::Px(2.0)),
                             ..default()
                         },
-                        background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                        background_color: if i == 0 {
+                            Color::rgb(0.6, 0.6, 0.6).into()
+                        } else {
+                            Color::rgb(0.4, 0.4, 0.4).into()
+                        },
                         ..default()
                     }).with_children(|parent| {
                         let mut ecmds = parent.spawn(ImageBundle {
@@ -268,7 +275,10 @@ pub fn show_hotbar(
                         if i == 0 {
                             let entity = ecmds.id().clone();
                             ecmds.commands()
-                                .insert_resource(ActiveHotbarSlot(entity));
+                                .insert_resource(ActiveHotbarSlot {
+                                    entity,
+                                    index: 0,
+                                });
                         }
                     });
                 }
@@ -296,19 +306,14 @@ pub fn hotbar(
     }
     scroll_amount *= -1;
     if scroll_amount != 0 {
-        let mut current_slot = 0;
-        for (entity, _, hotbar_slot) in slots.iter() {
-            if entity == active_slot.0 {
-                current_slot = hotbar_slot.position as i32;
-            }
-        }
-        let new_slot = (current_slot + scroll_amount).clamp(0, 7) as usize;
+        active_slot.index =
+            (active_slot.index as i32 + scroll_amount).clamp(0, 7) as usize;
         for (entity, parent, hotbar_slot) in slots.iter() {
-            if new_slot == hotbar_slot.position {
-                active_slot.0 = entity;
+            if active_slot.index == hotbar_slot.position {
+                active_slot.entity = entity;
             }
             *slot_surrounds.get_mut(parent.get()).unwrap() =
-                if new_slot == hotbar_slot.position {
+                if active_slot.index == hotbar_slot.position {
                     Color::rgb(0.6, 0.6, 0.6).into()
                 } else {
                     Color::rgb(0.4, 0.4, 0.4).into()

@@ -12,7 +12,7 @@ use bevy::window::WindowResized;
 use bevy_rapier3d::prelude::*;
 //use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
 use crate::add_bloom::AddBloom;
-use crate::assets::GameState;
+use crate::assets::{GameState, VoxelMeshAssets};
 use crate::key_translator::TranslatedKey;
 use crate::interact::{Interactable, Item};
 use crate::inventory::{Inventory, InventoryItem, ItemType};
@@ -123,6 +123,7 @@ fn setup(
     session: Res<Session>,
     mut nip: ResMut<NetcodeIdProvider>,
     asset_server: Res<AssetServer>,
+    voxel_mesh_assets: Res<VoxelMeshAssets>,
 ) {
     for mut window in windows.iter_mut() {
         window.present_mode = bevy::window::PresentMode::AutoVsync;
@@ -154,9 +155,8 @@ fn setup(
             ..default()
         },
         FpsController {
-            walk_speed: 5.0,
-            run_speed: 8.0,
             key_fly: KeyCode::Grave,
+            step_offset: 0.3,
             enable_input: false,
             ..default()
         },
@@ -278,6 +278,16 @@ fn setup(
         },
         post_processing_pass_layer,
     ));
+
+    voxel_mesh_assets.staircase[0].spawn(
+        &Transform::from_xyz(0.0, 20.0, 0.0),
+        &mut commands, &mut meshes, &mut materials);
+    voxel_mesh_assets.staircase[0].spawn(
+        &Transform::from_xyz(-1.0, 21.0, 0.0),
+        &mut commands, &mut meshes, &mut materials);
+    voxel_mesh_assets.staircase[0].spawn(
+        &Transform::from_xyz(-2.0, 22.0, 0.0),
+        &mut commands, &mut meshes, &mut materials);
 }
 
 fn add_convex_hull_colliders(
@@ -557,7 +567,7 @@ fn reload_level(
     keyboard: Res<Input<KeyCode>>,
     preexisting_voxels: Query<Entity, With<PartOfMap>>,
 ) {
-    if keyboard.just_pressed(KeyCode::R) {
+    if keyboard.just_pressed(KeyCode::L) {
         for entity in preexisting_voxels.iter() {
             commands.entity(entity).despawn();
         }
