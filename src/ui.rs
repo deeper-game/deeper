@@ -297,10 +297,10 @@ pub fn hotbar(
     for event in scroll_events.iter() {
         match event.unit {
             MouseScrollUnit::Line => {
-                scroll_amount += f32::round(event.y) as i32;
+                scroll_amount += f32::signum(event.y) as i32;
             },
             MouseScrollUnit::Pixel => {
-                scroll_amount += f32::round(event.y * 3.0) as i32;
+                scroll_amount += f32::signum(event.y) as i32;
             },
         }
     }

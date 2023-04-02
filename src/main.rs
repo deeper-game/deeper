@@ -156,7 +156,6 @@ fn setup(
         },
         FpsController {
             key_fly: KeyCode::Grave,
-            step_offset: 0.3,
             enable_input: false,
             ..default()
         },
