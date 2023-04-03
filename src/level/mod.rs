@@ -79,6 +79,7 @@ impl std::hash::Hash for Vert {
 
 #[derive(Clone, Resource)]
 pub struct Map {
+    pub seed: u64,
     pub room_boxes: Vec<AABB>,
     pub open_doorways: HashSet<Doorway>,
     pub voxels: Brick<Voxel>,
@@ -87,9 +88,10 @@ pub struct Map {
 
 impl Map {
     pub fn room_gluing(
-        starting_room: &Room, size: usize, rooms: &[Room]
+        seed: u64, starting_room: &Room, size: usize, rooms: &[Room]
     ) -> Map {
         let mut map = Map {
+            seed,
             room_boxes: vec![starting_room.voxels.bounding_box.clone()],
             open_doorways: starting_room.doorways.iter().cloned().collect(),
             voxels: starting_room.voxels.clone(),
@@ -103,7 +105,8 @@ impl Map {
             }
         }
 
-        let mut rng = rand::thread_rng();
+        use rand::SeedableRng;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         for iter in 0 .. size {
             println!("Room gluing iteration {}", iter);
             let mut candidates = Vec::<(DoorwayMatch, &Room)>::new();

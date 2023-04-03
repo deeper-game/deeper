@@ -2129,6 +2129,7 @@ dependencies = [
  "num-traits",
  "petgraph",
  "rand",
+ "rand_chacha",
  "rapier3d",
  "serde",
  "thiserror",

@@ -416,6 +416,7 @@ fn resize_camera_texture(
 struct PartOfMap;
 
 fn spawn_voxels(
+    seed: u64,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -430,7 +431,7 @@ fn spawn_voxels(
                             pos.z as f32 - 0.5)
     };
     use crate::level::{self, voxel, UVRect};
-    let mut map = level::Map::room_gluing(start_room, 20, rooms);
+    let mut map = level::Map::room_gluing(seed, start_room, 20, rooms);
     let stone = level::Block {
         orientation: voxel::CardinalDir::East,
         texture: voxel::Texture::Stone,
@@ -575,7 +576,10 @@ fn reload_level(
         let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
         let rooms = [room1.clone(), room2.clone()];
 
-        spawn_voxels(&mut commands, &mut meshes, &mut materials,
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        spawn_voxels(rng.gen(),
+                     &mut commands, &mut meshes, &mut materials,
                      &Some(image_assets.stone.clone()), &room1, &rooms);
     }
 }
@@ -594,7 +598,9 @@ fn spawn_level(
     let room2 = crate::level::Room::parse(&rooms.get(&room_assets.room2).unwrap().contents);
     let rooms = [room1.clone(), room2.clone()];
 
-    spawn_voxels(&mut commands, &mut meshes, &mut materials,
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    spawn_voxels(rng.gen(), &mut commands, &mut meshes, &mut materials,
                  &Some(image_assets.stone.clone()), &room1, &rooms);
 
     commands.spawn((
