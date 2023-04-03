@@ -1,22 +1,11 @@
 use bevy::math::Quat;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct Voxel {
     pub orientation: CardinalDir,
     pub shape: VoxelShape,
     pub texture: Texture,
     pub style: Style,
-}
-
-impl Default for Voxel {
-    fn default() -> Voxel {
-        Voxel {
-            orientation: CardinalDir::East,
-            shape: VoxelShape::Air,
-            texture: Texture::None,
-            style: Style::Normal,
-        }
-    }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -71,21 +60,24 @@ pub enum Direction {
     Up,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub enum VoxelShape {
+    #[default]
     Air,
     Solid,
     Staircase,
     Roof { slope: fraction::Fraction },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
 pub enum Texture {
+    #[default]
     None,
     Stone,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
 pub enum Style {
+    #[default]
     Normal,
 }
