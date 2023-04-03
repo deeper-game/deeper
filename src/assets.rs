@@ -250,23 +250,46 @@ pub fn populate_voxel_meshes(
         assert_eq!(collider_gltf_mesh.primitives.len(), 1);
         let collider = &collider_gltf_mesh.primitives[0].mesh;
 
-        let mut result = VoxelMesh {
-            neighbors: HashSet::new(),
-            weathering: 1,
-            meshes: vec![],
-            collider: collider.clone(),
-            collider_mode: ColliderMode::Mesh,
-            friction: Friction::default(),
-            ghost: false,
-        };
+        let neighbors_empty = HashSet::new();
+        let mut neighbors_l = HashSet::new();
+        neighbors_l.insert(Direction::North);
+        let mut neighbors_r = HashSet::new();
+        neighbors_r.insert(Direction::South);
+        let mut neighbors_lr = HashSet::new();
+        neighbors_lr.insert(Direction::North);
+        neighbors_lr.insert(Direction::South);
 
-        for prim in &get_mesh(&meshes["StairsWeathered1Mesh"]).primitives {
-            result.meshes.push(MeshWithMaterial {
-                mesh: prim.mesh.clone(),
-                material: prim.material.clone().unwrap_or(default_material.clone()),
-            });
+        let staircases = vec![
+            ("StairsWeathered0Mesh", 0, neighbors_empty.clone()),
+            ("StairsWeathered1Mesh", 1, neighbors_empty.clone()),
+            ("StairsWeathered1LMesh", 1, neighbors_l.clone()),
+            ("StairsWeathered1RMesh", 1, neighbors_r.clone()),
+            ("StairsWeathered1LRMesh", 1, neighbors_lr.clone()),
+            ("StairsWeathered2Mesh", 2, neighbors_empty.clone()),
+            ("StairsWeathered2LMesh", 2, neighbors_l.clone()),
+            ("StairsWeathered2RMesh", 2, neighbors_r.clone()),
+            ("StairsWeathered2LRMesh", 2, neighbors_lr.clone()),
+        ];
+
+        for (name, weathering, neighbors) in staircases {
+            let mut result = VoxelMesh {
+                neighbors,
+                weathering,
+                meshes: vec![],
+                collider: collider.clone(),
+                collider_mode: ColliderMode::Mesh,
+                friction: Friction::default(),
+                ghost: false,
+            };
+
+            for prim in &get_mesh(&meshes[name]).primitives {
+                result.meshes.push(MeshWithMaterial {
+                    mesh: prim.mesh.clone(),
+                    material: prim.material.clone().unwrap_or(default_material.clone()),
+                });
+            }
+
+            vma.staircase.push(result);
         }
-
-        vma.staircase.push(result);
     }
 }
