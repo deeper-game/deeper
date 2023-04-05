@@ -3,7 +3,8 @@ use bevy::ecs::query::QuerySingleError;
 use crate::assets::{GameState, ColliderMode, VoxelMeshAssets};
 use crate::inventory::{Inventory, ItemType};
 use crate::fps_controller::{LogicalPlayer, RenderPlayer};
-use crate::level::voxel::{CardinalDir, VoxelShape};
+use crate::level::ActiveLevel;
+use crate::level::voxel::{CardinalDir, Voxel, VoxelShape, Texture, Style};
 use crate::ui::ActiveHotbarSlot;
 
 pub struct VoxelEditorPlugin;
@@ -22,16 +23,19 @@ pub struct VoxelEditor {
     enabled: bool,
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct GhostBlock {
     rotation: CardinalDir,
     block: VoxelShape,
+    texture: Texture,
+    style: Style
 }
 
 fn ghost_block(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut level: ResMut<ActiveLevel>,
     vma: Res<VoxelMeshAssets>,
     voxel_editor: Res<VoxelEditor>,
     cameras: Query<&Transform, (With<RenderPlayer>, Without<GhostBlock>)>,
@@ -39,17 +43,17 @@ fn ghost_block(
     active_hotbar_slot: Res<ActiveHotbarSlot>,
     mut inventories: Query<&mut Inventory, With<LogicalPlayer>>,
     key: Res<Input<KeyCode>>,
+    mouse: Res<Input<MouseButton>>,
 ) {
     let inventory = inventories.single();
     match ghost_blocks.get_single_mut() {
         Ok((entity, mut ghost_block, mut transform)) => {
             let hotbar_block = inventory.hotbar[active_hotbar_slot.index]
                 .as_ref().map(|x| &x.item_type).cloned();
-            if Some(ItemType::Voxel(ghost_block.block.clone())) != hotbar_block {
-                commands.entity(entity).despawn_recursive();
-                return;
-            }
-            if !voxel_editor.enabled {
+            let mut despawn = false;
+            despawn |= !voxel_editor.enabled;
+            despawn |= Some(ItemType::Voxel(ghost_block.block.clone())) != hotbar_block;
+            if despawn {
                 commands.entity(entity).despawn_recursive();
                 return;
             }
@@ -64,6 +68,23 @@ fn ghost_block(
                 .mul_transform(Transform::from_translation(in_front_of_camera.translation.round()))
                 .mul_transform(Transform::from_rotation(ghost_block.rotation.as_rotation()))
                 .mul_transform(Transform::from_translation(Vec3::new(-0.5, -0.5, 0.5)));
+            if mouse.just_pressed(MouseButton::Left) {
+                let mut vm = match ghost_block.block {
+                    VoxelShape::Solid => vma.solid[0].clone(),
+                    VoxelShape::Staircase => vma.staircase[0].clone(),
+                    _ => { return; },
+                };
+                let spawned = vm.spawn(&transform, &mut commands,
+                                       &mut meshes, &mut materials);
+                let position = (transform.translation - Vec3::new(-0.5, -0.5, 0.5)).as_ivec3();
+                level.updates.insert(position, Voxel {
+                    orientation: ghost_block.rotation,
+                    shape: ghost_block.block.clone(),
+                    texture: ghost_block.texture,
+                    style: ghost_block.style,
+                });
+                level.entities.push(spawned);
+            }
         },
         Err(QuerySingleError::NoEntities(_)) => {
             if voxel_editor.enabled {
@@ -81,10 +102,9 @@ fn ghost_block(
                     let entity = vm.spawn(
                         &Transform::default(), &mut commands,
                         &mut meshes, &mut materials);
-                    commands.entity(entity).insert(GhostBlock {
-                        rotation: CardinalDir::default(),
-                        block: shape.clone(),
-                    });
+                    let mut ghost_block = GhostBlock::default();
+                    ghost_block.block = shape.clone();
+                    commands.entity(entity).insert(ghost_block);
                 }
             }
         },

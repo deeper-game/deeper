@@ -91,6 +91,7 @@ pub fn main() {
         .add_plugin(crate::explosion::ExplosionPlugin)
         .add_plugin(crate::trail::TrailPlugin)
         .add_plugin(crate::add_bloom::AddBloomPlugin)
+        .add_plugin(crate::level::LevelPlugin)
         .add_plugin(crate::voxel_editor::VoxelEditorPlugin)
         //.add_plugin(Sprite3dPlugin)
         //.add_plugin(crate::camera::PlayerPlugin)

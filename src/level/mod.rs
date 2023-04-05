@@ -18,6 +18,32 @@ pub mod erior;
 pub mod integer_matrix;
 pub mod voxel;
 
+pub struct LevelPlugin;
+
+impl Plugin for LevelPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .insert_resource(ActiveLevel::default());
+    }
+}
+
+#[derive(Clone, Default, Resource)]
+pub struct ActiveLevel {
+    pub map: Option<Map>,
+    pub updates: HashMap<IVec3, Voxel>,
+    pub entities: Vec<Entity>,
+}
+
+impl From<Map> for ActiveLevel {
+    fn from(map: Map) -> ActiveLevel {
+        ActiveLevel {
+            map: Some(map),
+            updates: HashMap::new(),
+            entities: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Block {
     pub texture: Texture,
@@ -77,7 +103,7 @@ impl std::hash::Hash for Vert {
     }
 }
 
-#[derive(Clone, Resource)]
+#[derive(Clone)]
 pub struct Map {
     pub seed: u64,
     pub room_boxes: Vec<AABB>,
