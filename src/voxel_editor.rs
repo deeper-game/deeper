@@ -69,10 +69,8 @@ fn ghost_block(
                 .mul_transform(Transform::from_rotation(ghost_block.rotation.as_rotation()))
                 .mul_transform(Transform::from_translation(Vec3::new(-0.5, -0.5, 0.5)));
             if mouse.just_pressed(MouseButton::Left) {
-                let mut vm = match ghost_block.block {
-                    VoxelShape::Solid => vma.solid[0].clone(),
-                    VoxelShape::Staircase => vma.staircase[0].clone(),
-                    _ => { return; },
+                let Some(mut vm) = vma.index(&ghost_block.block) else {
+                    return;
                 };
                 let spawned = vm.spawn(&transform, &mut commands,
                                        &mut meshes, &mut materials);
@@ -92,10 +90,8 @@ fn ghost_block(
                     inventory.hotbar[active_hotbar_slot.index]
                     .as_ref().map(|x| &x.item_type);
                 if let Some(ItemType::Voxel(shape)) = active {
-                    let mut vm = match *shape {
-                        VoxelShape::Solid => vma.solid[0].clone(),
-                        VoxelShape::Staircase => vma.staircase[0].clone(),
-                        _ => { return; },
+                    let Some(mut vm) = vma.index(shape) else {
+                        return;
                     };
                     vm.collider_mode = ColliderMode::None;
                     vm.ghost = true;

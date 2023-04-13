@@ -66,7 +66,7 @@ pub enum VoxelShape {
     Air,
     Solid,
     Staircase,
-    Roof { slope: fraction::Fraction },
+    Roof, // { slope: fraction::Fraction },
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]

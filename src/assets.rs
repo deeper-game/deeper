@@ -71,6 +71,8 @@ pub struct FontAssets {
 pub struct GltfAssets {
     #[asset(path = "gltf/stairs.glb")]
     pub staircase: Handle<Gltf>,
+    #[asset(path = "gltf/roof.glb")]
+    pub roof: Handle<Gltf>,
 }
 
 #[derive(Clone, Debug)]
@@ -167,6 +169,7 @@ impl VoxelMesh {
 pub struct VoxelMeshAssets {
     pub solid: Vec<VoxelMesh>,
     pub staircase: Vec<VoxelMesh>,
+    pub roof: Vec<VoxelMesh>,
 }
 
 impl VoxelMeshAssets {
@@ -175,7 +178,7 @@ impl VoxelMeshAssets {
             VoxelShape::Air => None,
             VoxelShape::Solid => Some(self.solid[0].clone()),
             VoxelShape::Staircase => Some(self.staircase[0].clone()),
-            VoxelShape::Roof { .. } => None,
+            VoxelShape::Roof => Some(self.roof[0].clone()),
         }
     }
 }
@@ -291,5 +294,30 @@ pub fn populate_voxel_meshes(
 
             vma.staircase.push(result);
         }
+    }
+
+    {
+        let meshes = &gltfs.get(&gltf_assets.roof).unwrap().named_meshes;
+
+        let mut result = VoxelMesh {
+            neighbors: HashSet::new(),
+            weathering: 0,
+            meshes: vec![],
+            collider: Handle::<Mesh>::default(),
+            collider_mode: ColliderMode::None,
+            friction: Friction::default(),
+            ghost: false,
+        };
+
+        for name in ["StructureEdgeBakedMesh", "TubesEdgeBakedMesh", "TopBarEdgeBakedMesh", "Mesh"] {
+            for prim in &get_mesh(&meshes[name]).primitives {
+                result.meshes.push(MeshWithMaterial {
+                    mesh: prim.mesh.clone(),
+                    material: prim.material.clone().unwrap_or(default_material.clone()),
+                });
+            }
+        }
+
+        vma.roof.push(result);
     }
 }

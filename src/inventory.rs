@@ -41,6 +41,10 @@ impl Inventory {
             item_type: ItemType::Voxel(VoxelShape::Staircase),
             equipped: false,
         });
+        hotbar[2] = Some(InventoryItem {
+            item_type: ItemType::Voxel(VoxelShape::Roof),
+            equipped: false,
+        });
         Inventory {
             width: 16,
             height: 4,
