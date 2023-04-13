@@ -9,6 +9,7 @@ use std::collections::{HashSet, HashMap};
 use num_traits::float::FloatConst;
 use bevy::prelude::*;
 use bevy::window::WindowResized;
+use bevy::diagnostic::*;
 use bevy_rapier3d::prelude::*;
 //use bevy_inspector_egui::{quick::ResourceInspectorPlugin, quick::FilterQueryInspectorPlugin};
 use crate::add_bloom::AddBloom;
@@ -68,6 +69,8 @@ pub fn main() {
         .insert_resource(RapierConfiguration::default())
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         //.add_plugin(RapierDebugRenderPlugin::default())
+        //.add_plugin(LogDiagnosticsPlugin::default())
+        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(bevy_scene_hook::HookPlugin)
         .add_plugin(bevy_egui::EguiPlugin)
         .add_plugin(bevy_mod_outline::OutlinePlugin)
@@ -162,6 +165,7 @@ fn setup(
         },
         Inventory::new(),
         nip.next(),
+        Friction::new(0.0),
     ));
 
     let player_mesh = meshes.add(Mesh::from(shape::Cube { size: 0.5 }));
@@ -194,6 +198,7 @@ fn setup(
                 ..default()
             },
             peer.clone(),
+            Friction::new(0.0),
         ));
 
         commands.spawn((

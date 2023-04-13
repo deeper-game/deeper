@@ -17,6 +17,7 @@ use std::f32::consts::*;
 
 use bevy::input::mouse::MouseMotion;
 use bevy::{math::Vec3Swizzles, prelude::*};
+use bevy::utils::FloatOrd;
 use bevy::window::PrimaryWindow;
 use bevy_rapier3d::prelude::*;
 
@@ -54,6 +55,8 @@ pub struct FpsControllerInput {
     pub sprint: bool,
     pub jump: bool,
     pub crouch: bool,
+    pub dash: bool,
+    pub pound: bool,
     pub pitch: f32,
     pub yaw: f32,
     pub movement: u8,
@@ -86,6 +89,22 @@ impl FpsControllerInput {
         if z >= 0 { result |= 1 << 4; }
         if z.abs() > 0 { result |= 1 << 5; }
         self.movement = result;
+    }
+}
+
+pub struct StaminaState {
+    pub timer: Timer,
+    pub current_actions: u8,
+    pub max_actions: u8,
+}
+
+impl Default for StaminaState {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(1.0, TimerMode::Once),
+            current_actions: 3,
+            max_actions: 3,
+        }
     }
 }
 
@@ -124,6 +143,10 @@ pub struct FpsController {
     pub sensitivity: f32,
     pub enable_input: bool,
     pub step_offset: f32,
+    pub stamina_state: StaminaState,
+    pub dash_timer: Timer,
+    pub dash_delta: Vec3,
+    pub wall_jump_debounce: Timer,
     pub key_forward: KeyCode,
     pub key_back: KeyCode,
     pub key_left: KeyCode,
@@ -134,6 +157,8 @@ pub struct FpsController {
     pub key_jump: KeyCode,
     pub key_fly: KeyCode,
     pub key_crouch: KeyCode,
+    pub key_dash: KeyCode,
+    pub key_pound: KeyCode,
 }
 
 impl Default for FpsController {
@@ -143,14 +168,14 @@ impl Default for FpsController {
             radius: 0.5,
             fly_speed: 10.0,
             fast_fly_speed: 30.0,
-            gravity: 23.0,
+            gravity: 9.81,
             walk_speed: 9.0,
             run_speed: 14.0,
             forward_speed: 30.0,
             side_speed: 30.0,
-            air_speed_cap: 2.0,
+            air_speed_cap: 1000.0,
             air_acceleration: 20.0,
-            max_air_speed: 15.0,
+            max_air_speed: 1000.0, // 15.0,
             crouched_speed: 5.0,
             crouch_speed: 6.0,
             uncrouch_speed: 8.0,
@@ -161,13 +186,17 @@ impl Default for FpsController {
             friction: 10.0,
             traction_normal_cutoff: 0.7,
             friction_speed_cutoff: 0.1,
-            fly_friction: 0.5,
+            fly_friction: 5.0,
             pitch: 0.0,
             yaw: 0.0,
             ground_tick: 0,
             stop_speed: 1.0,
-            jump_speed: 8.5,
+            jump_speed: 7.0,
             step_offset: 0.0,
+            stamina_state: StaminaState::default(),
+            dash_timer: Timer::from_seconds(0.2, TimerMode::Once),
+            dash_delta: Vec3::ZERO,
+            wall_jump_debounce: Timer::from_seconds(0.1, TimerMode::Once),
             enable_input: true,
             key_forward: KeyCode::W,
             key_back: KeyCode::S,
@@ -179,6 +208,8 @@ impl Default for FpsController {
             key_jump: KeyCode::Space,
             key_fly: KeyCode::F,
             key_crouch: KeyCode::LControl,
+            key_dash: KeyCode::Q,
+            key_pound: KeyCode::E,
             sensitivity: 0.001,
         }
     }
@@ -220,6 +251,8 @@ pub fn fps_controller_input(
         input.jump = key_input.pressed(controller.key_jump);
         input.fly = key_input.just_pressed(controller.key_fly);
         input.crouch = key_input.pressed(controller.key_crouch);
+        input.dash = key_input.pressed(controller.key_dash);
+        input.pound = key_input.pressed(controller.key_pound);
     }
 }
 
@@ -245,6 +278,17 @@ pub fn fps_controller_move(
     let dt = time.delta_seconds();
 
     for (entity, input, mut controller, mut collider, mut transform, mut velocity) in query.iter_mut() {
+        controller.stamina_state.timer.tick(time.delta());
+        if controller.stamina_state.timer.finished() {
+            controller.stamina_state.timer.reset();
+            controller.stamina_state.current_actions = u8::min(
+                controller.stamina_state.max_actions,
+                controller.stamina_state.current_actions + 1,
+            );
+        }
+        controller.dash_timer.tick(time.delta());
+        controller.wall_jump_debounce.tick(time.delta());
+
         if input.fly {
             controller.move_mode = match controller.move_mode {
                 MoveMode::Noclip => MoveMode::Ground,
@@ -346,6 +390,7 @@ pub fn fps_controller_move(
                             velocity.linvel -= Vec3::dot(linvel, toi.normal1) * toi.normal1;
 
                             if input.jump {
+                                controller.wall_jump_debounce.reset();
                                 velocity.linvel.y = controller.jump_speed;
                             }
                         }
@@ -366,11 +411,85 @@ pub fn fps_controller_move(
                         add.y = -controller.gravity * dt;
                         velocity.linvel += add;
 
+                        if controller.dash_timer.just_finished() {
+                            velocity.linvel -= controller.dash_delta;
+                        }
+
+                        if input.dash && controller.stamina_state.current_actions >= 1 && controller.dash_timer.finished() {
+                            controller.dash_timer.reset();
+                            let mut move_to_world = Mat3::from_euler(EulerRot::YXZ, input.yaw, input.pitch, 0.0);
+                            move_to_world.z_axis *= -1.0; // Forward is -Z
+                            move_to_world.y_axis = Vec3::Y; // Vertical movement aligned with world up
+                            let mut delta = move_to_world * Vec3::new(0.0, 0.0, 50.0);
+                            delta.y = 0.0;
+                            controller.dash_delta = delta;
+                            velocity.linvel += delta;
+                        }
+
                         let air_speed = velocity.linvel.xz().length();
                         if air_speed > controller.max_air_speed {
                             let ratio = controller.max_air_speed / air_speed;
                             velocity.linvel.x *= ratio;
                             velocity.linvel.z *= ratio;
+                        }
+
+                        if input.jump && controller.wall_jump_debounce.finished() {
+                            controller.wall_jump_debounce.reset();
+                            let mut direction_and_distance = vec![];
+                            let num_rays = 48;
+                            for i in 0 .. num_rays {
+                                let rotation =
+                                    (i as f32) * std::f32::consts::TAU
+                                    / (num_rays as f32);
+                                let direction =
+                                    Quat::from_rotation_y(rotation)
+                                    * Vec3::new(1.0, 0.0, 0.0);
+                                if let Some((entity, dist)) =
+                                    physics_context.cast_ray(
+                                        transform.translation,
+                                        direction,
+                                        1.2,
+                                        false,
+                                        filter)
+                                {
+                                    direction_and_distance.push(
+                                        (direction, dist));
+                                }
+                            }
+                            if let Some((direction, distance)) =
+                                direction_and_distance.iter()
+                                .min_by_key(|x| FloatOrd(x.1)).cloned()
+                            {
+                                if distance < 0.6 {
+                                    println!("DEBUG: wall jumped :DDDD");
+                                    let mut push = direction * -5.0;
+                                    push.y = 1.0;
+                                    velocity.linvel += push;
+                                }
+                            }
+                            // let projection = physics_context.project_point(
+                            //     transform.translation,
+                            //     false,
+                            //     filter,
+                            // );
+                            // if let Some((_, proj)) = projection {
+                            //     let normal = physics_context.cast_ray_and_get_normal(
+                            //         transform.translation,
+                            //         proj.point - transform.translation,
+                            //         1.2,
+                            //         false,
+                            //         filter,
+                            //     ).unwrap().1.normal;
+                            //     let distance =
+                            //         (proj.point - transform.translation).length();
+                            //     if distance < 0.6 {
+                            //         // let reflected =
+                            //         //     ((2.0 * velocity.linvel.dot(normal)) * normal)
+                            //         //     - velocity.linvel;
+                            //         velocity.linvel += normal * 5.0;
+                            //         velocity.linvel += Vec3::new(0.0, 0.2, 0.0);
+                            //     }
+                            // }
                         }
                     }
 
