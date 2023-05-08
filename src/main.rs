@@ -255,11 +255,13 @@ fn setup(
                 palette: palette.clone(),
                 ..default()
             }),
+            // I don't really understand why the translation here needs to be
+            // 298.8 instead of 299, but it does seem to be the maximal value
+            // that leads to zero crop.
             transform: Transform::IDENTITY
                 .with_rotation(Quat::from_rotation_x(f32::PI() / 2.0))
-                .with_translation(Vec3::new(300.0, 300.0, 299.0))
-                .with_scale(Vec3::new(1.0, 1.0, 1.0))
-                ,
+                .with_translation(Vec3::new(300.0, 300.0, 298.8))
+                .with_scale(Vec3::new(1.0, 1.0, 1.0)),
             ..default()
         },
         CameraTexture(render_target),
