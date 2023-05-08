@@ -72,6 +72,7 @@ pub fn main() {
         .add_plugin(bevy_egui::EguiPlugin)
         .add_plugin(bevy_mod_outline::OutlinePlugin)
         .add_plugin(bevy_mod_outline::AutoGenerateOutlineNormalsPlugin)
+        .add_plugin(bevy_framepace::FramepacePlugin)
         .add_plugin(crate::netcode::NetcodePlugin)
         .insert_resource(crate::netcode::connect("testing", 1)) // FIXME
         .add_plugin(crate::postprocessing::PostprocessingPlugin)

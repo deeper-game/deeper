@@ -925,6 +925,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_framepace"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1825c5a485aa2a2ffd91cc1faa1f4d621c804a893ead88cafedbe1ed6c51d34"
+dependencies = [
+ "bevy",
+ "spin_sleep",
+]
+
+[[package]]
 name = "bevy_gilrs"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2117,6 +2127,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_dylib",
  "bevy_egui",
+ "bevy_framepace",
  "bevy_mod_outline",
  "bevy_rapier3d",
  "bincode",
@@ -4762,6 +4773,16 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "spin_sleep"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cafa7900db085f4354dbc7025e25d7a839a14360ea13b5fc4fd717f2d3b23134"
+dependencies = [
+ "once_cell",
+ "winapi",
+]
 
 [[package]]
 name = "spirv"
