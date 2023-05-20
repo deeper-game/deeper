@@ -59,7 +59,7 @@ pub fn interact(
 pub fn interaction_glow(
     rapier_context: Res<RapierContext>,
     mut selected: ResMut<Selected>,
-    mut interactables: Query<&mut OutlineVolume,
+    mut interactables: Query<Option<&mut OutlineVolume>,
                              (With<GlobalTransform>, With<Collider>, With<Interactable>)>,
     camera: Query<&GlobalTransform, With<RenderPlayer>>,
     player: Query<Entity, With<LogicalPlayer>>,
@@ -72,20 +72,20 @@ pub fn interaction_glow(
     ) {
         if selected.entity != Some(entity) {
             if let Some(e) = selected.entity {
-                if let Ok(mut volume) = interactables.get_mut(e) {
+                if let Ok(Some(mut volume)) = interactables.get_mut(e) {
                     volume.visible = false;
                 }
             }
             selected.entity = None;
 
-            if let Ok(mut volume) = interactables.get_mut(entity) {
+            if let Ok(Some(mut volume)) = interactables.get_mut(entity) {
                 volume.visible = true;
-                selected.entity = Some(entity);
             }
+            selected.entity = Some(entity);
         }
     } else {
         if let Some(e) = selected.entity {
-            if let Ok(mut volume) = interactables.get_mut(e) {
+            if let Ok(Some(mut volume)) = interactables.get_mut(e) {
                 volume.visible = false;
             }
         }
