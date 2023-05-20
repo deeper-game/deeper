@@ -1102,6 +1102,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_pathmesh"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa2fed3a01953c9974bb2a96c3729247b3bcb08a7b59a792d4831f89f2187b77"
+dependencies = [
+ "bevy",
+ "itertools",
+ "polyanya",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1388,7 +1399,7 @@ dependencies = [
  "ahash 0.7.6",
  "bevy_utils_proc_macros",
  "getrandom 0.2.8",
- "hashbrown",
+ "hashbrown 0.12.3",
  "instant",
  "petgraph",
  "thiserror",
@@ -1597,6 +1608,15 @@ name = "bumpalo"
 version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d261e256854913907f67ed06efbc3338dfe6179796deefc1ff763fc1aee5535"
+
+[[package]]
+name = "bvh2d"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4871cf2b5e950788cae8030d83bc886462ca97697a3455fb3bf62048fad8d922"
+dependencies = [
+ "glam",
+]
 
 [[package]]
 name = "bytemuck"
@@ -2129,6 +2149,7 @@ dependencies = [
  "bevy_egui",
  "bevy_framepace",
  "bevy_mod_outline",
+ "bevy_pathmesh",
  "bevy_rapier3d",
  "bincode",
  "bitvec",
@@ -2139,6 +2160,7 @@ dependencies = [
  "noto-sans-mono-bitmap",
  "num-traits",
  "petgraph",
+ "polyanya",
  "rand",
  "rand_chacha",
  "rapier3d",
@@ -2767,6 +2789,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e4afd9ad95555081e109fe1d21f2a30c691b5f0919c67dfa690a2e1eb6bd51c"
 dependencies = [
+ "approx",
  "bytemuck",
  "serde",
 ]
@@ -2888,7 +2911,7 @@ checksum = "0b0c02e1ba0bdb14e965058ca34e09c020f8e507a760df1121728e0aef68d57a"
 dependencies = [
  "bitflags",
  "gpu-descriptor-types",
- "hashbrown",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -2929,6 +2952,15 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash 0.7.6",
  "serde",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
+dependencies = [
+ "ahash 0.8.3",
 ]
 
 [[package]]
@@ -3061,7 +3093,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1885e79c1fc4b10f0e172c475f458b7f7b93061064d98c3293e98c5ba0c8b399"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.12.3",
  "serde",
 ]
 
@@ -3152,6 +3184,15 @@ name = "ipnet"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30e22bd8629359895450b59ea7a776c850561b96a3b1d31321c1949d9e6c9146"
+
+[[package]]
+name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itoa"
@@ -4122,6 +4163,18 @@ dependencies = [
  "log",
  "pin-project-lite",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "polyanya"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0dd0cd40ee3eb8096b0ff48c301fe1e1a53ea8b2ded0ea7bff48b734be009d1"
+dependencies = [
+ "bvh2d",
+ "glam",
+ "hashbrown 0.13.2",
+ "smallvec",
 ]
 
 [[package]]

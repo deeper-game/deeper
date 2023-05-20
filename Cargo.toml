@@ -11,6 +11,7 @@ bevy_egui = "0.20.*"
 bevy_rapier3d = { version = "0.21.*", features = ["serde-serialize", "enhanced-determinism"] }
 bevy-inspector-egui = "0.18.*"
 bevy_mod_outline = { git = "https://github.com/komadori/bevy_mod_outline.git" }
+bevy_pathmesh = "0.4.*"
 bevy-scene-hook = "6.0.*"
 bincode = "*"
 serde = "*"
@@ -32,6 +33,7 @@ num-traits = "*"
 ab_glyph = "*"
 noisy_bevy = "*"
 uuid = "*"
+polyanya = "*"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 bevy_dylib = "*"
